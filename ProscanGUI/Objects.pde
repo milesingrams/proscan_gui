@@ -32,11 +32,11 @@ class DrawingObj {
       if (buttons[i].pressed) {
         xCoords[i] = toGrid(globalToLocalX(mouseX));
         yCoords[i] = toGrid(globalToLocalY(mouseY));
-        pxCoords[i] = localToGlobalX(xCoords[i]);
-        pyCoords[i] = localToGlobalY(yCoords[i]);
-        buttons[i].x = pxCoords[i]-buttonSize/2;
-        buttons[i].y = pyCoords[i]-buttonSize/2;
       }
+      pxCoords[i] = localToGlobalX(xCoords[i]);
+      pyCoords[i] = localToGlobalY(yCoords[i]);
+      buttons[i].x = pxCoords[i]-buttonSize/2;
+      buttons[i].y = pyCoords[i]-buttonSize/2;
     }
   }
   
@@ -185,20 +185,30 @@ class Selection {
   int px, py;
   int pw, ph;
   ArrayList<DrawingObj> objs;
+  ArrayList<float[]> relativeCoordsX;
+  ArrayList<float[]> relativeCoordsY;
   Clickable dragButton;
+  Clickable scaleButton;
+  int buttonSize = 8;
   
   Selection() {
     objs = new ArrayList<DrawingObj>();
-    dragButton = new Clickable(0, 0, 8, 8, true);
+    
+    dragButton = new Clickable(0, 0, buttonSize, buttonSize, true);
     dragButton.basecolor = color(0, 255, 0);
     dragButton.pressedcolor = dragButton.highlightcolor = color(0, 200, 0);
     dragButton.visible = false;
+    
+    scaleButton = new Clickable(0, 0, buttonSize, buttonSize, true);
+    scaleButton.basecolor = color(0, 255, 0);
+    scaleButton.pressedcolor = scaleButton.highlightcolor = color(0, 200, 0);
+    scaleButton.visible = false;
   }
   
   void insert(DrawingObj obj) {
     obj.select();
     objs.add(obj);
-    updateMinMax();
+    updateVals();
   }
   
   void delete() {
@@ -211,22 +221,64 @@ class Selection {
   void press() {
     if(dragButton.over()) {
       dragButton.press();
-    }
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).press();
+    } else
+    if(scaleButton.over()) {
+      scaleButton.press();
+    } else {
+      for (int i=0; i<objs.size(); i++) {
+        objs.get(i).press();
+      }
     }
   }
   
   void release() {
     dragButton.release();
+    scaleButton.release();
     for (int i=0; i<objs.size(); i++) {
       objs.get(i).release();
     }
-    updateMinMax();
+    updateVals();
   }
   
+  void update() {
+    if (dragButton.pressed) {
+      x = toGrid(globalToLocalX(mouseX)-w/2);
+      y = toGrid(globalToLocalY(mouseY)-h/2);
+      setPos();
+      endTransform();
+    } else 
+    if (scaleButton.pressed) {
+      w = toGrid(globalToLocalX(mouseX)-x-buttonSize);
+      h = toGrid(globalToLocalY(mouseY)-y-buttonSize);
+      setPos();
+      endTransform();
+    }
+  }
   
-  void updateMinMax() {
+  void setPos() {
+    px = localToGlobalX(x);
+    py = localToGlobalY(y);
+    pw = localToGlobalX(x+w)-px;
+    ph = localToGlobalY(y+h)-py;
+    dragButton.x = px+pw/2-buttonSize/2;
+    dragButton.y = py+ph/2-buttonSize/2;
+    scaleButton.x = px+pw+buttonSize;
+    scaleButton.y = py+ph+buttonSize;
+  }
+  
+  void endTransform() {
+    for (int i=0; i<objs.size(); i++) {
+      DrawingObj currObj = objs.get(i);
+      float[] tempRelX = relativeCoordsX.get(i);
+      float[] tempRelY = relativeCoordsY.get(i);
+      for (int j=0; j<currObj.numCoords; j++) {
+        currObj.xCoords[j] = toGrid(x + int(tempRelX[j]*w));
+        currObj.yCoords[j] = toGrid(y + int(tempRelY[j]*h));
+      }
+    }
+  }
+  
+  void updateVals() {
     if (objs.size() > 0) {
       DrawingObj currObj = objs.get(0);
       int x1 = currObj.minX();
@@ -246,15 +298,35 @@ class Selection {
       y = y1;
       w = x2-x1;
       h = y2-y1;
-      px = localToGlobalX(x);
-      py = localToGlobalY(y);
-      pw = localToGlobalX(x+w)-px;
-      ph = localToGlobalY(y+h)-py;
-      dragButton.x = px+pw/2-4;
-      dragButton.y = py+ph/2-4;
+      setPos();
       dragButton.visible = true;
+      scaleButton.visible = true;
+      
+      // set relative positions
+      relativeCoordsX = new ArrayList<float[]>();
+      relativeCoordsY = new ArrayList<float[]>();
+      for (int i=0; i<objs.size(); i++) {
+        currObj = objs.get(i);
+        float[] tempRelX = new float[currObj.numCoords];
+        float[] tempRelY = new float[currObj.numCoords];
+        for (int j=0; j<currObj.numCoords; j++) {
+          if (w > 0) {
+            tempRelX[j] = float(currObj.xCoords[j]-x)/w;
+          } else {
+            tempRelX[j] = 0;
+          }
+          if (h > 0) {
+            tempRelY[j] = float(currObj.yCoords[j]-y)/h;
+          } else {
+            tempRelY[j] = 0;
+          }
+        }
+        relativeCoordsX.add(tempRelX);
+        relativeCoordsY.add(tempRelY);
+      }
     } else {
       dragButton.visible = false;
+      scaleButton.visible = false;
     }
   }
   
@@ -266,11 +338,13 @@ class Selection {
   }
   
   void display() {
+    update();
     if (objs.size() > 0) {
       stroke(0, 255, 0);
       noFill();
       rect(px, py, pw, ph);
       dragButton.display();
+      scaleButton.display();
     }
   }
 }
