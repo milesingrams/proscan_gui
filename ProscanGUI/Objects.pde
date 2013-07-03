@@ -1,211 +1,147 @@
 class DrawingObj {
+  int numCoords;
+  int[] xCoords;
+  int[] yCoords;
+  int[] pxCoords;
+  int[] pyCoords;
+  Clickable[] buttons;
+  int buttonSize = 6;
   boolean selected;
   
-  DrawingObj() {
-    selected = false;
-  }
-  
-  void update(){}
-  void display(){}
-  void press(){}
-  void release(){}
-  void select(){}
-  void deselect(){}
-  void makeCommands(){}
-  int minX(){return 0;}
-  int minY(){return 0;}
-  int maxX(){return 0;}
-  int maxY(){return 0;}
-  boolean inBounds(int ix1, int iy1, int ix2, int iy2){return false;}
-}
-
-class LineObj extends DrawingObj {
-  int speed; // single bar width
-  int x1, y1;
-  int x2, y2;
-  int px1, py1;
-  int px2, py2;
-  Clickable button1;
-  Clickable button2;
- 
-  LineObj(int s, int ix1, int iy1, int ix2, int iy2) {
-    super();
-    speed = s;
-    x1 = ix1;
-    y1 = iy1;
-    x2 = ix2;
-    y2 = iy2;
-    px1 = localToGlobalX(x1);
-    py1 = localToGlobalY(y1);
-    px2 = localToGlobalX(x2);
-    py2 = localToGlobalY(y2);
-    button1 = new Clickable(px1-3, py1-2, 6, 6, true);
-    button2 = new Clickable(px2-3, py2-2, 6, 6, true);
-    button1.visible = false;
-    button2.visible = false;
+  DrawingObj (int[] ixCoords, int[] iyCoords) {
+    numCoords = ixCoords.length;
+    xCoords = ixCoords;
+    yCoords = iyCoords;
+    pxCoords = new int[numCoords];
+    pyCoords = new int[numCoords];
+    buttons = new Clickable[numCoords];
+    
+    for (int i=0; i<numCoords; i++) {
+      pxCoords[i] = localToGlobalX(xCoords[i]);
+      pyCoords[i] = localToGlobalY(yCoords[i]);
+      Clickable tempButton = new Clickable(pxCoords[i]-buttonSize/2, pyCoords[i]-buttonSize/2, buttonSize, buttonSize, true);
+      buttons[i] = tempButton;
+      tempButton.visible = false;
+    }
+    
     selected = false;
   }
   
   void update() {
-    if(button1.pressed) {
-      x1 = toGrid(globalToLocalX(mouseX));
-      y1 = toGrid(globalToLocalY(mouseY));
-      px1 = localToGlobalX(x1);
-      py1 = localToGlobalY(y1);
-      button1.x = px1-3;
-      button1.y = py1-3;
-    } else
-    if(button2.pressed) {
-      x2 = toGrid(globalToLocalX(mouseX));
-      y2 = toGrid(globalToLocalY(mouseY));
-      px2 = localToGlobalX(x2);
-      py2 = localToGlobalY(y2);
-      button2.x = px2-3;
-      button2.y = py2-3;
+    for (int i=0; i<numCoords; i++) {
+      if (buttons[i].pressed) {
+        xCoords[i] = toGrid(globalToLocalX(mouseX));
+        yCoords[i] = toGrid(globalToLocalY(mouseY));
+        pxCoords[i] = localToGlobalX(xCoords[i]);
+        pyCoords[i] = localToGlobalY(yCoords[i]);
+        buttons[i].x = pxCoords[i]-buttonSize/2;
+        buttons[i].y = pyCoords[i]-buttonSize/2;
+      }
     }
   }
   
   void press() {
-    if(button1.over()) {
-      button1.press();
-    }
-    if(button2.over()) {
-      button2.press();
+    for (int i=0; i<numCoords; i++) {
+      if (buttons[i].over()) {
+        buttons[i].press();
+      }
     }
   }
   
   void release() {
-    button1.release();
-    button2.release();
+    for (int i=0; i<numCoords; i++) {
+      buttons[i].release();
+    }
   }
   
   void select() {
     selected = true;
-    button1.visible = true;
-    button2.visible = true;
+    for (int i=0; i<numCoords; i++) {
+      buttons[i].visible = true;
+    }
   }
   
   void deselect() {
     selected = false;
-    button1.visible = false;
-    button2.visible = false;
+    for (int i=0; i<numCoords; i++) {
+      buttons[i].visible = false;
+    }
   }
   
   int minX() {
-    return min(x1, x2);
+    return min(xCoords);
   }
   int minY() {
-    return min(y1, y2);
+    return min(yCoords);
   }
   int maxX() {
-    return max(x1, x2);
+    return max(xCoords);
   }
   int maxY() {
-    return max(y1, y2);
+    return max(yCoords);
   }
   
   boolean inBounds(int ix1, int iy1, int ix2, int iy2) {
-    if (inRegion(x1, y1, ix1, iy1, ix2-ix1, iy2-iy1) && inRegion(x2, y2, ix1, iy1, ix2-ix1, iy2-iy1)) {
-      return true;
+    boolean allin = true;
+    for (int i=0; i<numCoords; i++) {
+      if (inRegion(xCoords[i], yCoords[i], ix1, iy1, ix2-ix1, iy2-iy1) == false) {
+        allin = false;
+      }
     }
-    return false;
+    return allin;
+  }
+  
+  void displayButtons() {
+    for (int i=0; i<numCoords; i++) {
+      buttons[i].display();
+    }
+  }
+  
+  void display(){}
+  void makeCommands(){}
+}
+
+class LineObj extends DrawingObj {
+  int speed; // single bar width
+ 
+  LineObj(int s, int ix1, int iy1, int ix2, int iy2) {
+    super(new int[]{ix1, ix2}, new int[]{iy1, iy2});
+    speed = s;
   }
  
   void display() {
     update();
     stroke(colorMap(speed, maxSpeed));
-    line(px1, py1, px2, py2);
-    button1.display();
-    button2.display();
+    line(pxCoords[0], pyCoords[0], pxCoords[1], pyCoords[1]);
+    displayButtons();
   }
   
   void makeCommands() {
     addCommand(new TextCommand("SMS", str(baseMoveSpeed)));
-    addCommand(new MoveCommand(x1, y1, false));
+    addCommand(new MoveCommand(xCoords[0], yCoords[0], false));
     addCommand(new TextCommand("SMS", str(speed)));
-    addCommand(new MoveCommand(x2, y2, true));
+    addCommand(new MoveCommand(xCoords[1], yCoords[1], true));
   }
   
   String toString() {
-    return "LINE "+speed+" "+x1+" "+y1+" "+x2+" "+y2;
+    return "LINE "+speed+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
   }
 }
 
 class PointObj extends DrawingObj {
   int time; // single bar width
-  int x, y;
-  int px, py;
-  Clickable button;
  
   PointObj(int it, int ix, int iy) {
-    super();
+    super(new int[]{ix}, new int[]{iy});
     time = it;
-    x = ix;
-    y = iy;
-    px = localToGlobalX(x);
-    py = localToGlobalY(y);
-    button = new Clickable(px-3, py-3, 6, 6, true);
-    button.visible = false;
-    selected = false;
-  }
-  
-  void update() {
-    if(button.pressed) {
-      x = toGrid(globalToLocalX(mouseX));
-      y = toGrid(globalToLocalY(mouseY));
-      px = localToGlobalX(x);
-      py = localToGlobalY(y);
-      button.x = px-3;
-      button.y = py-3;
-    }
-  }
-  
-  void press() {
-    if(button.over()) {
-      button.press();
-    }
-  }
-  
-  void release() {
-    button.release();
-  }
-  
-  void select() {
-    selected = true;
-    button.visible = true;
-  }
-  
-  void deselect() {
-    selected = false;
-    button.visible = false;
-  }
-  
-  int minX() {
-    return x;
-  }
-  int minY() {
-    return y;
-  }
-  int maxX() {
-    return x;
-  }
-  int maxY() {
-    return y;
-  }
-  
-  boolean inBounds(int ix1, int iy1, int ix2, int iy2) {
-    if (inRegion(x, y, ix1, iy1, ix2-ix1, iy2-iy1)) {
-      return true;
-    }
-    return false;
   }
  
   void display() {
     update();
     stroke(0);
     fill(colorMap(time, maxTime));
-    ellipse(px, py, 10, 10);
-    button.display();
+    ellipse(pxCoords[0], pyCoords[0], 10, 10);
+    displayButtons();
   }
   
   void makeCommands() {
@@ -213,118 +149,33 @@ class PointObj extends DrawingObj {
   }
   
   String toString() {
-    return "POINT "+time+" "+x+" "+y;
+    return "POINT "+time+" "+xCoords[0]+" "+yCoords[0];
   }
 }
 
 class RectObj extends DrawingObj {
   int speed; // single bar width
-  int x1, y1;
-  int x2, y2;
-  int px1, py1;
-  int px2, py2;
-  Clickable button1;
-  Clickable button2;
  
   RectObj(int s, int ix1, int iy1, int ix2, int iy2) {
-    super();
+    super(new int[]{ix1, ix2}, new int[]{iy1, iy2});
     speed = s;
-    x1 = ix1;
-    y1 = iy1;
-    x2 = ix2;
-    y2 = iy2;
-    px1 = localToGlobalX(x1);
-    py1 = localToGlobalY(y1);
-    px2 = localToGlobalX(x2);
-    py2 = localToGlobalY(y2);
-    button1 = new Clickable(px1-3, py1-3, 6, 6, true);
-    button2 = new Clickable(px2-3, py2-3, 6, 6, true);
-    button1.visible = false;
-    button2.visible = false;
-    selected = false;
-  }
-  
-  void update() {
-    if (button1.pressed) {
-      x1 = toGrid(globalToLocalX(mouseX));
-      y1 = toGrid(globalToLocalY(mouseY));
-      px1 = localToGlobalX(x1);
-      py1 = localToGlobalY(y1);
-      button1.x = px1-3;
-      button1.y = py1-3;
-    } else
-    if (button2.pressed) {
-      x2 = toGrid(globalToLocalX(mouseX));
-      y2 = toGrid(globalToLocalY(mouseY));
-      px2 = localToGlobalX(x2);
-      py2 = localToGlobalY(y2);
-      button2.x = px2-3;
-      button2.y = py2-3;
-    }
-  }
-  
-  void press() {
-    if(button1.over()) {
-      button1.press();
-    }
-    if(button2.over()) {
-      button2.press();
-    }
-  }
-  
-  void release() {
-    button1.release();
-    button2.release();
-  }
-  
-  void select() {
-    selected = true;
-    button1.visible = true;
-    button2.visible = true;
-  }
-  
-  void deselect() {
-    selected = false;
-    button1.visible = false;
-    button2.visible = false;
-  }
-  
-  int minX() {
-    return min(x1, x2);
-  }
-  int minY() {
-    return min(y1, y2);
-  }
-  int maxX() {
-    return max(x1, x2);
-  }
-  int maxY() {
-    return max(y1, y2);
-  }
-  
-  boolean inBounds(int ix1, int iy1, int ix2, int iy2) {
-    if (inRegion(x1, y1, ix1, iy1, ix2-ix1, iy2-iy1) && inRegion(x2, y2, ix1, iy1, ix2-ix1, iy2-iy1)) {
-      return true;
-    }
-    return false;
   }
   
   void display() {
     update();
     stroke(colorMap(speed, maxSpeed));
-    line(px1, py1, px2, py1);
-    line(px2, py1, px2, py2);
-    line(px2, py2, px1, py2);
-    line(px1, py2, px1, py1);
-    button1.display();
-    button2.display();
+    line(pxCoords[0], pyCoords[0], pxCoords[1], pyCoords[0]);
+    line(pxCoords[1], pyCoords[0], pxCoords[1], pyCoords[1]);
+    line(pxCoords[1], pyCoords[1], pxCoords[0], pyCoords[1]);
+    line(pxCoords[0], pyCoords[1], pxCoords[0], pyCoords[0]);
+    displayButtons();
   }
   
   void makeCommands() {
   }
   
   String toString() {
-    return "RECT "+speed+" "+x1+" "+y1+" "+x2+" "+y2;
+    return "RECT "+speed+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
   }
 }
 
