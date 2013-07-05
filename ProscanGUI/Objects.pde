@@ -4,7 +4,12 @@ class DrawingObj {
   int[] yCoords;
   int[] pxCoords;
   int[] pyCoords;
-  Clickable[] buttons;
+  int midX;
+  int midY;
+  int[] relativeCoordsX;
+  int[] relativeCoordsY;
+  Clickable[] vertexButtons;
+  Clickable dragButton;
   int buttonSize = 6;
   boolean selected;
   
@@ -14,57 +19,98 @@ class DrawingObj {
     yCoords = iyCoords;
     pxCoords = new int[numCoords];
     pyCoords = new int[numCoords];
-    buttons = new Clickable[numCoords];
-    
-    for (int i=0; i<numCoords; i++) {
-      pxCoords[i] = localToGlobalX(xCoords[i]);
-      pyCoords[i] = localToGlobalY(yCoords[i]);
-      Clickable tempButton = new Clickable(pxCoords[i]-buttonSize/2, pyCoords[i]-buttonSize/2, buttonSize, buttonSize, true);
-      buttons[i] = tempButton;
-      tempButton.visible = false;
-    }
-    
+    relativeCoordsX = new int[numCoords];
+    relativeCoordsY = new int[numCoords];
     selected = false;
+    
+    vertexButtons = new Clickable[numCoords];
+    for (int i=0; i<numCoords; i++) {
+      vertexButtons[i] = new Clickable(0, 0, buttonSize, buttonSize, true);
+      vertexButtons[i].visible = false;
+    }
+    dragButton = new Clickable(0, 0, buttonSize, buttonSize, true);
+    dragButton.visible = false;
+    
+    updatePos();
   }
   
   void update() {
     for (int i=0; i<numCoords; i++) {
-      if (buttons[i].pressed) {
+      if (vertexButtons[i].pressed) {
         xCoords[i] = toGrid(globalToLocalX(mouseX));
         yCoords[i] = toGrid(globalToLocalY(mouseY));
+        updatePos();
       }
+    }
+    if (dragButton.pressed) {
+      midX = globalToLocalX(mouseX);
+      midY = globalToLocalY(mouseY);
+      for (int i=0; i<numCoords; i++) {
+        xCoords[i] = toGrid(midX + relativeCoordsX[i]);
+        yCoords[i] = toGrid(midY + relativeCoordsY[i]);
+      }
+      updatePos();
+    }
+  }
+  
+  void updatePos() {
+    for (int i=0; i<numCoords; i++) {
       pxCoords[i] = localToGlobalX(xCoords[i]);
       pyCoords[i] = localToGlobalY(yCoords[i]);
-      buttons[i].x = pxCoords[i]-buttonSize/2;
-      buttons[i].y = pyCoords[i]-buttonSize/2;
+      vertexButtons[i].x = pxCoords[i]-buttonSize/2;
+      vertexButtons[i].y = pyCoords[i]-buttonSize/2;
+    }
+    midX = midX();
+    midY = midY();
+    dragButton.x = localToGlobalX(midX())-buttonSize/2;
+    dragButton.y = localToGlobalY(midY())-buttonSize/2;
+  }
+  
+  void setRelativeCoords() {
+    for (int i=0; i<numCoords; i++) {
+      relativeCoordsX[i] = xCoords[i]-midX();
+      relativeCoordsY[i] = yCoords[i]-midY();
     }
   }
   
   void press() {
+    if (dragButton.over()) {
+      dragButton.press();
+      setRelativeCoords();
+    }
     for (int i=0; i<numCoords; i++) {
-      if (buttons[i].over()) {
-        buttons[i].press();
+      if (vertexButtons[i].over()) {
+        vertexButtons[i].press();
       }
     }
   }
   
   void release() {
+    dragButton.release();
     for (int i=0; i<numCoords; i++) {
-      buttons[i].release();
+      vertexButtons[i].release();
     }
   }
   
   void select() {
     selected = true;
+    dragButton.visible = true;
     for (int i=0; i<numCoords; i++) {
-      buttons[i].visible = true;
+      vertexButtons[i].visible = true;
     }
   }
   
   void deselect() {
     selected = false;
+    dragButton.visible = false;
     for (int i=0; i<numCoords; i++) {
-      buttons[i].visible = false;
+      vertexButtons[i].visible = false;
+    }
+  }
+  
+  void delete() {
+    for (int i=0; i<drawingList.size(); i++) {
+      drawingList.remove(this);
     }
   }
   
@@ -80,6 +126,12 @@ class DrawingObj {
   int maxY() {
     return max(yCoords);
   }
+  int midX() {
+    return (minX()+maxX())/2;
+  }
+  int midY() {
+    return (minY()+maxY())/2;
+  }
   
   boolean inBounds(int ix1, int iy1, int ix2, int iy2) {
     boolean allin = true;
@@ -93,8 +145,9 @@ class DrawingObj {
   
   void displayButtons() {
     for (int i=0; i<numCoords; i++) {
-      buttons[i].display();
+      vertexButtons[i].display();
     }
+    dragButton.display();
   }
   
   void display(){}
@@ -164,10 +217,8 @@ class RectObj extends DrawingObj {
   void display() {
     update();
     stroke(colorMap(speed, maxSpeed));
-    line(pxCoords[0], pyCoords[0], pxCoords[1], pyCoords[0]);
-    line(pxCoords[1], pyCoords[0], pxCoords[1], pyCoords[1]);
-    line(pxCoords[1], pyCoords[1], pxCoords[0], pyCoords[1]);
-    line(pxCoords[0], pyCoords[1], pxCoords[0], pyCoords[0]);
+    noFill();
+    rect(pxCoords[0], pyCoords[0], pxCoords[1]-pxCoords[0], pyCoords[1]-pyCoords[0]);
     displayButtons();
   }
   
@@ -178,173 +229,238 @@ class RectObj extends DrawingObj {
     return "RECT "+speed+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
   }
 }
+  
 
-class Selection {
-  int x, y;
+class GroupObj extends DrawingObj {
   int w, h;
-  int px, py;
-  int pw, ph;
   ArrayList<DrawingObj> objs;
-  ArrayList<float[]> relativeCoordsX;
-  ArrayList<float[]> relativeCoordsY;
-  Clickable dragButton;
-  Clickable scaleButton;
-  int buttonSize = 8;
+  ArrayList<float[]> relativeX;
+  ArrayList<float[]> relativeY;
+  
+  GroupObj() {
+    super(new int[]{0, 0}, new int[]{0, 0});
+    objs = new ArrayList<DrawingObj>();
+    init();
+  }
+  
+  GroupObj(ArrayList<DrawingObj> iObjs) {
+    super(new int[]{0, 0}, new int[]{0, 0});
+    objs = iObjs;
+    init();
+  }
+  
+  void init() {
+    relativeX = new ArrayList<float[]>();
+    relativeY = new ArrayList<float[]>();
+    getBounds();
+  }
+  
+  void insert(DrawingObj iObj) {
+    objs.add(iObj);
+    getBounds();
+  }
+  
+  void insert(ArrayList<DrawingObj> iObjs) {
+    objs.addAll(iObjs);
+    getBounds();
+  }
+  
+  void updatePos() {
+    super.updatePos();
+    w = xCoords[1]-xCoords[0];
+    h = yCoords[1]-yCoords[0];
+    endTransform();
+  }
+  
+  void getBounds() {
+    if (objs.size() > 0) {
+      DrawingObj currObj = objs.get(0);
+      xCoords[0] = xCoords[1] = currObj.minX();
+      yCoords[0] = yCoords[1] = currObj.minY();
+      
+      for (int i=0; i<objs.size(); i++) {
+        currObj = objs.get(i);
+        xCoords[0] = min(xCoords[0], currObj.minX());
+        yCoords[0] = min(yCoords[0], currObj.minY());
+        xCoords[1] = max(xCoords[1], currObj.maxX());
+        yCoords[1] = max(yCoords[1], currObj.maxY());
+      }
+      
+      w = xCoords[1]-xCoords[0];
+      h = yCoords[1]-yCoords[0];
+      
+      setRelativePos();
+    } else {
+      xCoords[0] = xCoords[1] = 0;
+      yCoords[0] = yCoords[1] = 0;
+      w = 0;
+      h = 0;
+    }
+    updatePos();
+  }
+  
+  void setRelativePos() {
+    relativeX.clear();
+    relativeY.clear();
+        
+    for (int i=0; i<objs.size(); i++) {
+      DrawingObj currObj = objs.get(i);
+      float[] tempRelX = new float[currObj.numCoords];
+      float[] tempRelY = new float[currObj.numCoords];
+      for (int j=0; j<currObj.numCoords; j++) {
+        if (w > 0) {
+          tempRelX[j] = float(currObj.xCoords[j]-xCoords[0])/w;
+        } else {
+          tempRelX[j] = 0;
+        }
+        if (h > 0) {
+          tempRelY[j] = float(currObj.yCoords[j]-yCoords[0])/h;
+        } else {
+          tempRelY[j] = 0;
+        }
+      }
+      relativeX.add(tempRelX);
+      relativeY.add(tempRelY);
+    }
+  }
+  
+  void endTransform() {
+    if (objs != null) {
+      for (int i=0; i<objs.size(); i++) {
+        DrawingObj currObj = objs.get(i);
+        float[] tempRelX = relativeX.get(i);
+        float[] tempRelY = relativeY.get(i);
+        for (int j=0; j<currObj.numCoords; j++) {
+          currObj.xCoords[j] = xCoords[0] + int(tempRelX[j]*w);
+          currObj.yCoords[j] = yCoords[0] + int(tempRelY[j]*h);
+        }
+        currObj.updatePos();
+      }
+    }
+  }
+  
+  void display() {
+    update();
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).display();
+    }
+    if (selected) {
+      stroke(0, 200, 0);
+      noFill();
+      rect(pxCoords[0], pyCoords[0], w, h);
+      displayButtons();
+    }
+  }
+  
+  void makeCommands() {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).makeCommands();
+    }
+  }
+  
+  void ungroup() {
+    drawingList.addAll(this.objs);
+    objSelection.insert(this.objs);
+    delete();
+  }
+  
+  String toString() {
+    String toPrint = "GROUP";
+    for (int i=0; i<objs.size(); i++) {
+      toPrint += "\n"+objs.get(i).toString();
+    }
+    toPrint += "\nENDGROUP";
+    return toPrint;
+  }
+}
+
+class Selection extends GroupObj {
   
   Selection() {
-    objs = new ArrayList<DrawingObj>();
-    
-    dragButton = new Clickable(0, 0, buttonSize, buttonSize, true);
+    super();
     dragButton.basecolor = color(0, 255, 0);
     dragButton.pressedcolor = dragButton.highlightcolor = color(0, 200, 0);
-    dragButton.visible = false;
-    
-    scaleButton = new Clickable(0, 0, buttonSize, buttonSize, true);
-    scaleButton.basecolor = color(0, 255, 0);
-    scaleButton.pressedcolor = scaleButton.highlightcolor = color(0, 200, 0);
-    scaleButton.visible = false;
-  }
-  
-  void insert(DrawingObj obj) {
-    obj.select();
-    objs.add(obj);
-    updateVals();
-  }
-  
-  void delete() {
-    for (int i=0; i<objs.size(); i++) {
-      drawingList.remove(objs.get(i));
+    for (int i=0; i<2; i++) {
+      vertexButtons[i].basecolor = color(0, 255, 0);
+      vertexButtons[i].pressedcolor = vertexButtons[i].highlightcolor = color(0, 200, 0);
     }
-    erase();
   }
   
   void press() {
-    if(dragButton.over()) {
-      dragButton.press();
-    } else
-    if(scaleButton.over()) {
-      scaleButton.press();
-    } else {
-      for (int i=0; i<objs.size(); i++) {
+    super.press();
+    for (int i=0; i<objs.size(); i++) {
         objs.get(i).press();
-      }
     }
   }
   
   void release() {
-    dragButton.release();
-    scaleButton.release();
+    super.release();
     for (int i=0; i<objs.size(); i++) {
       objs.get(i).release();
     }
-    updateVals();
+    getBounds();
   }
   
-  void update() {
-    if (dragButton.pressed) {
-      x = toGrid(globalToLocalX(mouseX)-w/2);
-      y = toGrid(globalToLocalY(mouseY)-h/2);
-      setPos();
-      endTransform();
-    } else 
-    if (scaleButton.pressed) {
-      w = toGrid(globalToLocalX(mouseX)-x-buttonSize);
-      h = toGrid(globalToLocalY(mouseY)-y-buttonSize);
-      setPos();
-      endTransform();
-    }
-  }
-  
-  void setPos() {
-    px = localToGlobalX(x);
-    py = localToGlobalY(y);
-    pw = localToGlobalX(x+w)-px;
-    ph = localToGlobalY(y+h)-py;
-    dragButton.x = px+pw/2-buttonSize/2;
-    dragButton.y = py+ph/2-buttonSize/2;
-    scaleButton.x = px+pw+buttonSize;
-    scaleButton.y = py+ph+buttonSize;
-  }
-  
-  void endTransform() {
+  void select() {
+    super.select();
     for (int i=0; i<objs.size(); i++) {
-      DrawingObj currObj = objs.get(i);
-      float[] tempRelX = relativeCoordsX.get(i);
-      float[] tempRelY = relativeCoordsY.get(i);
-      for (int j=0; j<currObj.numCoords; j++) {
-        currObj.xCoords[j] = toGrid(x + int(tempRelX[j]*w));
-        currObj.yCoords[j] = toGrid(y + int(tempRelY[j]*h));
-      }
+      objs.get(i).select();
     }
   }
   
-  void updateVals() {
-    if (objs.size() > 0) {
-      DrawingObj currObj = objs.get(0);
-      int x1 = currObj.minX();
-      int y1 = currObj.minY();
-      int x2 = currObj.maxX();
-      int y2 = currObj.maxY();
-      
-      for (int i=1; i<objs.size(); i++) {
-        currObj = objs.get(i);
-        x1 = min(x1, currObj.minX());
-        y1 = min(y1, currObj.minY());
-        x2 = max(x2, currObj.maxX());
-        y2 = max(y2, currObj.maxY());
-      }
-      
-      x = x1;
-      y = y1;
-      w = x2-x1;
-      h = y2-y1;
-      setPos();
-      dragButton.visible = true;
-      scaleButton.visible = true;
-      
-      // set relative positions
-      relativeCoordsX = new ArrayList<float[]>();
-      relativeCoordsY = new ArrayList<float[]>();
-      for (int i=0; i<objs.size(); i++) {
-        currObj = objs.get(i);
-        float[] tempRelX = new float[currObj.numCoords];
-        float[] tempRelY = new float[currObj.numCoords];
-        for (int j=0; j<currObj.numCoords; j++) {
-          if (w > 0) {
-            tempRelX[j] = float(currObj.xCoords[j]-x)/w;
-          } else {
-            tempRelX[j] = 0;
-          }
-          if (h > 0) {
-            tempRelY[j] = float(currObj.yCoords[j]-y)/h;
-          } else {
-            tempRelY[j] = 0;
-          }
-        }
-        relativeCoordsX.add(tempRelX);
-        relativeCoordsY.add(tempRelY);
-      }
-    } else {
-      dragButton.visible = false;
-      scaleButton.visible = false;
-    }
-  }
-  
-  void erase() {
+  void deselect() {
+    super.deselect();
     for (int i=0; i<objs.size(); i++) {
       objs.get(i).deselect();
     }
     objs.clear();
   }
   
+  void insert(DrawingObj iObj) {
+    super.insert(iObj);
+    select();
+  }
+  
+  void insert(ArrayList<DrawingObj> iObjs) {
+    super.insert(iObjs);
+    select();
+  }
+  
+  void delete() {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).delete();
+    }
+    deselect();
+  }
+  
+  void group() {
+    if (selected) {
+      GroupObj newGroup = new GroupObj((ArrayList<DrawingObj>)objs.clone());
+      drawingList.add(newGroup);
+      delete();
+      insert(newGroup);
+    }
+  }
+  
+  void ungroup() {
+    if (selected) {
+      int objsSize = objs.size();
+      for (int i=0; i<objsSize; i++) {
+        if (objs.get(i) instanceof GroupObj) {
+          GroupObj currObj = (GroupObj)objs.get(i);
+          currObj.ungroup();
+        }
+      }
+    }
+  }
+  
   void display() {
     update();
-    if (objs.size() > 0) {
+    if (selected) {
       stroke(0, 255, 0);
       noFill();
-      rect(px, py, pw, ph);
-      dragButton.display();
-      scaleButton.display();
+      rect(pxCoords[0], pyCoords[0], w, h);
+      displayButtons();
     }
   }
 }

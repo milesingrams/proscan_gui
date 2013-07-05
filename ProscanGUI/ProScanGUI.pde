@@ -57,6 +57,8 @@ EllipseButton ellipseButton;
 ZoomInButton zoomInButton;
 ZoomOutButton zoomOutButton;
 TextButton editButton;
+TextButton groupButton;
+TextButton ungroupButton;
 
 // Slider
 Slider slider;
@@ -75,7 +77,6 @@ JFileChooser fileChooser;
 
 // initialization
 void setup() {
-  
   // Initialize Toolbar
   // Slider
   slider = new Slider(0, 12, 324, 24, maxSpeed, "Speed", 3, " um/s");
@@ -88,15 +89,17 @@ void setup() {
   ellipseButton = new EllipseButton(0, 0, 24, 24);
   zoomInButton = new ZoomInButton(0, 0, 24, 24);
   zoomOutButton = new ZoomOutButton(0, 0, 24, 24);
-  editButton = new TextButton(0, 0, 45, 24, "EDIT");
+  editButton = new TextButton(0, 0, 0, 24, "EDIT");
+  groupButton = new TextButton(0, 0, 0, 24, "GROUP");
+  ungroupButton = new TextButton(0, 0, 0, 24, "UNGROUP");
   
   // Other Buttons
-  saveButton = new TextButton(0, 0, 50, 24, "SAVE");
-  loadButton = new TextButton(0, 0, 50, 24, "LOAD");
-  posButton = new TextButton(0, 0, 50, 24, "POS");
-  zeroButton = new TextButton(0, 0, 50, 24, "ZERO");
-  stopButton = new TextButton(0, 0, 50, 24, "STOP");
-  runSequenceButton = new TextButton(0, 0, 110, 24, "RUN SEQUENCE");
+  saveButton = new TextButton(0, 0, 0, 24, "SAVE");
+  loadButton = new TextButton(0, 0, 0, 24, "LOAD");
+  posButton = new TextButton(0, 0, 0, 24, "POS");
+  zeroButton = new TextButton(0, 0, 0, 24, "ZERO");
+  stopButton = new TextButton(0, 0, 0, 24, "STOP");
+  runSequenceButton = new TextButton(0, 0, 0, 24, "RUN SEQUENCE");
   
   drawingTools = new Interface[]{
                                 pointButton, lineButton, curveButton, rectButton,
@@ -105,7 +108,8 @@ void setup() {
   topToolbar = new Interface[]{
                                 slider, pointButton, lineButton, curveButton,
                                 rectButton, ellipseButton, zoomInButton,zoomOutButton,
-                                editButton, loadButton, saveButton
+                                editButton, groupButton, ungroupButton, loadButton, 
+                                saveButton
   };
   bottomToolbar = new Interface[]{
                                 posButton, zeroButton, stopButton, runSequenceButton
@@ -363,7 +367,7 @@ void mousePressed() {
     }
   } else
   if (mouseButton == RIGHT) {
-    objSelection.erase();
+    objSelection.deselect();
   }
 }
 
@@ -404,6 +408,12 @@ void mouseReleased() {
       }
       if (editButton.over()) {
         setTool(editButton, "Edit");
+      }
+      if (groupButton.over()) {
+        objSelection.group();
+      }
+      if (ungroupButton.over()) {
+        objSelection.ungroup();
       }
       if (posButton.over()) {
         addCommand(new TextCommand("PS", ""));
@@ -472,14 +482,16 @@ void mouseReleased() {
         if (currentTool.equals("Edit")) {
           if (selecting) {
             selecting = false;
+            ArrayList<DrawingObj> tempObjs = new ArrayList<DrawingObj>();
             for (int i=0; i<drawingList.size(); i++) {
               DrawingObj currObj = drawingList.get(i);
               if (currObj.inBounds(lastX, lastY, globalToLocalX(mouseX), globalToLocalY(mouseY))) {
                 if (currObj.selected == false) {
-                  objSelection.insert(currObj);
+                  tempObjs.add(currObj);
                 }
               }
             }
+            objSelection.insert(tempObjs);
           }
         }
       }
@@ -508,7 +520,6 @@ void saveData() {
       DrawingObj currObj = drawingList.get(i);
       strings[i] = currObj.toString();
     }
-    print (file.getPath());
     saveStrings(file.getPath(), strings);
   }
 }
@@ -518,32 +529,53 @@ void loadData() {
   if (returnVal == JFileChooser.APPROVE_OPTION) { 
     File file = fileChooser.getSelectedFile();
     drawingList.clear();
+    
+    ArrayList<GroupObj> groups = new ArrayList<GroupObj>();
+    groups.add(new GroupObj());
     String[] strings = loadStrings(file.getPath());
+    
     for (int i=0; i<strings.length; i++) {
       String[] vals = splitTokens(strings[i], " ");
-      if (vals[0].equals("LINE")) {
-        int speed = parseInt(vals[1].trim());
-        int x1 = parseInt(vals[2].trim());
-        int y1 = parseInt(vals[3].trim());
-        int x2 = parseInt(vals[4].trim());
-        int y2 = parseInt(vals[5].trim());
-        drawingList.add(new LineObj(speed, x1, y1, x2, y2));
-      }
-      if (vals[0].equals("RECT")) {
-        int speed = parseInt(vals[1].trim());
-        int x1 = parseInt(vals[2].trim());
-        int y1 = parseInt(vals[3].trim());
-        int x2 = parseInt(vals[4].trim());
-        int y2 = parseInt(vals[5].trim());
-        drawingList.add(new RectObj(speed, x1, y1, x2, y2));
-      }
-      if (vals[0].equals("POINT")) {
-        int time = parseInt(vals[1].trim());
-        int x = parseInt(vals[2].trim());
-        int y = parseInt(vals[3].trim());
-        drawingList.add(new PointObj(time, x, y));
+      
+      if (vals[0].equals("GROUP")) {
+        groups.add(new GroupObj());
+      } else
+      if (vals[0].equals("ENDGROUP")) {
+          GroupObj lastGroup = groups.remove(groups.size()-1);
+          groups.get(groups.size()-1).insert(lastGroup);
+      } else {
+          groups.get(groups.size()-1).insert(parseArray(vals));
       }
     }
+    
+    drawingList = (ArrayList<DrawingObj>)groups.get(0).objs.clone();
+  }
+}
+
+DrawingObj parseArray(String[] vals) {
+  if (vals[0].equals("LINE")) {
+    int speed = parseInt(vals[1].trim());
+    int x1 = parseInt(vals[2].trim());
+    int y1 = parseInt(vals[3].trim());
+    int x2 = parseInt(vals[4].trim());
+    int y2 = parseInt(vals[5].trim());
+    return new LineObj(speed, x1, y1, x2, y2);
+  } else 
+  if (vals[0].equals("RECT")) {
+    int speed = parseInt(vals[1].trim());
+    int x1 = parseInt(vals[2].trim());
+    int y1 = parseInt(vals[3].trim());
+    int x2 = parseInt(vals[4].trim());
+    int y2 = parseInt(vals[5].trim());
+    return new RectObj(speed, x1, y1, x2, y2);
+  } else
+  if (vals[0].equals("POINT")) {
+    int time = parseInt(vals[1].trim());
+    int x = parseInt(vals[2].trim());
+    int y = parseInt(vals[3].trim());
+    return new PointObj(time, x, y);
+  } else {
+    return new DrawingObj(new int[]{}, new int[]{});
   }
 }
 

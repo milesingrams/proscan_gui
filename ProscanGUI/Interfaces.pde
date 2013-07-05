@@ -192,6 +192,10 @@ class TextButton extends Clickable {
   TextButton (int ix, int iy, int iw, int ih, String s) {
     super(ix, iy, iw, ih, false);
     txt = s;
+    if (w == 0) {
+      w = int(textWidth(txt))+20;
+    }
+    
   }
   
   void display () {
