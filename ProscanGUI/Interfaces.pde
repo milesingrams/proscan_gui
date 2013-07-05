@@ -27,7 +27,7 @@ class Clickable extends Interface {
   }
     
   boolean over() {
-    if(inRegion(mouseX, mouseY, x, y, w, h) ) {
+    if(inRegion(mouseX, mouseY, x, y, x+w, y+h) ) {
       return true;
     } else {
       return false;

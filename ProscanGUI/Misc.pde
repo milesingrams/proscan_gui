@@ -18,11 +18,9 @@ int globalToLocalY(int iy) {
 
 // is mouse over an area?
 
-boolean inRegion(int x, int y, int bx, int by, int bw, int bh) {
-  int bx2 = bx+bw;
-  int by2 = by+bh;
-  if (x >= bx && x <= bx2 || x >= bx && x <= bx2) {
-    if (y >= by && y <= by2 || y >= by && y <= by2) {
+boolean inRegion(int x, int y, int bx1, int by1, int bx2, int by2) {
+  if (x >= bx1 && x <= bx2 || x >= bx1 && x <= bx2) {
+    if (y >= by1 && y <= by2 || y >= by1 && y <= by2) {
       return true;
     }
   }

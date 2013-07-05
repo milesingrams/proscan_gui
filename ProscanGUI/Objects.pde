@@ -92,19 +92,37 @@ class DrawingObj {
     }
   }
   
-  void select() {
-    selected = true;
+  void beginEdit() {
     dragButton.visible = true;
     for (int i=0; i<numCoords; i++) {
       vertexButtons[i].visible = true;
     }
   }
   
-  void deselect() {
-    selected = false;
+  void endEdit() {
     dragButton.visible = false;
     for (int i=0; i<numCoords; i++) {
       vertexButtons[i].visible = false;
+    }
+  }
+  
+  void select() {
+    selected = true;
+    dragButton.basecolor = color(0, 255, 0);
+    dragButton.pressedcolor = dragButton.highlightcolor = color(0, 200, 0);
+    for (int i=0; i<numCoords; i++) {
+      vertexButtons[i].basecolor = color(0, 255, 0);
+      vertexButtons[i].pressedcolor = vertexButtons[i].highlightcolor = color(0, 200, 0);
+    }
+  }
+  
+  void deselect() {
+    selected = false;
+    dragButton.basecolor = color(230);
+    dragButton.pressedcolor = dragButton.highlightcolor = color(190);
+    for (int i=0; i<numCoords; i++) {
+      vertexButtons[i].basecolor = color(230);
+      vertexButtons[i].pressedcolor = vertexButtons[i].highlightcolor = color(190);
     }
   }
   
@@ -136,7 +154,7 @@ class DrawingObj {
   boolean inBounds(int ix1, int iy1, int ix2, int iy2) {
     boolean allin = true;
     for (int i=0; i<numCoords; i++) {
-      if (inRegion(xCoords[i], yCoords[i], ix1, iy1, ix2-ix1, iy2-iy1) == false) {
+      if (inRegion(xCoords[i], yCoords[i], ix1, iy1, ix2, iy2) == false) {
         allin = false;
       }
     }
@@ -344,12 +362,10 @@ class GroupObj extends DrawingObj {
     for (int i=0; i<objs.size(); i++) {
       objs.get(i).display();
     }
-    if (selected) {
-      stroke(0, 200, 0);
-      noFill();
-      rect(pxCoords[0], pyCoords[0], w, h);
-      displayButtons();
-    }
+    stroke(230);
+    noFill();
+    rect(pxCoords[0], pyCoords[0], pxCoords[1]-pxCoords[0], pyCoords[1]-pyCoords[0]);
+    displayButtons();
   }
   
   void makeCommands() {
@@ -406,6 +422,7 @@ class Selection extends GroupObj {
     for (int i=0; i<objs.size(); i++) {
       objs.get(i).select();
     }
+    beginEdit();
   }
   
   void deselect() {
@@ -414,6 +431,7 @@ class Selection extends GroupObj {
       objs.get(i).deselect();
     }
     objs.clear();
+    endEdit();
   }
   
   void insert(DrawingObj iObj) {
@@ -421,7 +439,7 @@ class Selection extends GroupObj {
     select();
   }
   
-  void insert(ArrayList<DrawingObj> iObjs) {
+  void insert(ArrayList<DrawingObj>  iObjs) {
     super.insert(iObjs);
     select();
   }
@@ -459,7 +477,7 @@ class Selection extends GroupObj {
     if (selected) {
       stroke(0, 255, 0);
       noFill();
-      rect(pxCoords[0], pyCoords[0], w, h);
+      rect(pxCoords[0], pyCoords[0], pxCoords[1]-pxCoords[0], pyCoords[1]-pyCoords[0]);
       displayButtons();
     }
   }
