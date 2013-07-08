@@ -27,6 +27,7 @@ class DrawingObj {
     for (int i=0; i<numCoords; i++) {
       vertexButtons[i] = new Clickable(0, 0, buttonSize, buttonSize, true);
       vertexButtons[i].visible = false;
+      vertexButtons[i].shapeType = 1;
     }
     dragButton = new Clickable(0, 0, buttonSize, buttonSize, true);
     dragButton.visible = false;
@@ -37,17 +38,17 @@ class DrawingObj {
   void update() {
     for (int i=0; i<numCoords; i++) {
       if (vertexButtons[i].pressed) {
-        xCoords[i] = toGrid(globalToLocalX(mouseX));
-        yCoords[i] = toGrid(globalToLocalY(mouseY));
+        xCoords[i] = stage.toGrid(stage.localMouseX());
+        yCoords[i] = stage.toGrid(stage.localMouseY());
         updatePos();
       }
     }
     if (dragButton.pressed) {
-      midX = globalToLocalX(mouseX);
-      midY = globalToLocalY(mouseY);
+      midX = stage.toGrid(stage.localMouseX());
+      midY = stage.toGrid(stage.localMouseY());
       for (int i=0; i<numCoords; i++) {
-        xCoords[i] = toGrid(midX + relativeCoordsX[i]);
-        yCoords[i] = toGrid(midY + relativeCoordsY[i]);
+        xCoords[i] = midX + relativeCoordsX[i];
+        yCoords[i] = midY + relativeCoordsY[i];
       }
       updatePos();
     }
@@ -55,15 +56,15 @@ class DrawingObj {
   
   void updatePos() {
     for (int i=0; i<numCoords; i++) {
-      pxCoords[i] = localToGlobalX(xCoords[i]);
-      pyCoords[i] = localToGlobalY(yCoords[i]);
+      pxCoords[i] = stage.localToGlobalX(xCoords[i]);
+      pyCoords[i] = stage.localToGlobalY(yCoords[i]);
       vertexButtons[i].x = pxCoords[i]-buttonSize/2;
       vertexButtons[i].y = pyCoords[i]-buttonSize/2;
     }
     midX = midX();
     midY = midY();
-    dragButton.x = localToGlobalX(midX())-buttonSize/2;
-    dragButton.y = localToGlobalY(midY())-buttonSize/2;
+    dragButton.x = stage.localToGlobalX(midX())-buttonSize/2;
+    dragButton.y = stage.localToGlobalY(midY())-buttonSize/2;
   }
   
   void setRelativeCoords() {
@@ -364,7 +365,7 @@ class GroupObj extends DrawingObj {
     }
     stroke(230);
     noFill();
-    rect(pxCoords[0], pyCoords[0], pxCoords[1]-pxCoords[0], pyCoords[1]-pyCoords[0]);
+    rect(pxCoords[0]-1, pyCoords[0]-1, pxCoords[1]-pxCoords[0]+2, pyCoords[1]-pyCoords[0]+2);
     displayButtons();
   }
   
@@ -375,6 +376,9 @@ class GroupObj extends DrawingObj {
   }
   
   void ungroup() {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).beginEdit();
+    }
     drawingList.addAll(this.objs);
     objSelection.insert(this.objs);
     delete();
@@ -391,14 +395,18 @@ class GroupObj extends DrawingObj {
 }
 
 class Selection extends GroupObj {
+  ArrayList<DrawingObj> clipboard = new ArrayList<DrawingObj>();
   
   Selection() {
     super();
+    buttonSize = 8;
     dragButton.basecolor = color(0, 255, 0);
     dragButton.pressedcolor = dragButton.highlightcolor = color(0, 200, 0);
+    dragButton.w = dragButton.h = buttonSize;
     for (int i=0; i<2; i++) {
       vertexButtons[i].basecolor = color(0, 255, 0);
       vertexButtons[i].pressedcolor = vertexButtons[i].highlightcolor = color(0, 200, 0);
+      vertexButtons[i].w = vertexButtons[i].h = buttonSize;
     }
   }
   
@@ -453,8 +461,12 @@ class Selection extends GroupObj {
   
   void group() {
     if (selected) {
+      for (int i=0; i<objs.size(); i++) {
+        objs.get(i).endEdit();
+      }
       GroupObj newGroup = new GroupObj((ArrayList<DrawingObj>)objs.clone());
       drawingList.add(newGroup);
+      newGroup.beginEdit();
       delete();
       insert(newGroup);
     }
@@ -472,12 +484,24 @@ class Selection extends GroupObj {
     }
   }
   
+  void copy() {
+    clipboard.clear();
+    for (int i=0; i<objs.size(); i++) {
+      //clipboard.add(objs.get(i).duplicate());
+    }
+  }
+  
+  void paste() {
+    drawingList.addAll(clipboard);
+    objs = clipboard;
+  }
+  
   void display() {
     update();
     if (selected) {
       stroke(0, 255, 0);
       noFill();
-      rect(pxCoords[0], pyCoords[0], pxCoords[1]-pxCoords[0], pyCoords[1]-pyCoords[0]);
+      rect(pxCoords[0]-1, pyCoords[0]-1, pxCoords[1]-pxCoords[0]+2, pyCoords[1]-pyCoords[0]+2);
       displayButtons();
     }
   }

@@ -1,6 +1,70 @@
+class Toolbar {
+  int x, y;
+  ArrayList<Interface> tools;
+  int spacing = 5;
+  boolean visible = true;
+  
+  Toolbar () {
+    x = 0;
+    y = 0;
+    tools = new ArrayList<Interface>();
+  }
+  
+  Toolbar (int ix, int iy) {
+    x = ix;
+    y = iy;
+    tools = new ArrayList<Interface>();
+  }
+  
+  Toolbar (int ix, int iy, ArrayList<Interface> iTools) {
+    x = ix;
+    y = iy;
+    setTools(iTools);
+  }
+  
+  void setTools (ArrayList<Interface> iTools) {
+    tools = iTools;
+    updatePos();
+  }
+  
+  void updatePos() {
+    int currX = x;
+    for (int i=0; i<tools.size(); i++) {
+      Interface currTool = tools.get(i);
+      currTool.x = currX;
+      currTool.y = y;
+      currTool.updatePos();
+      currX += currTool.w + spacing;
+    }
+  }
+  
+  void setVisible() {
+    visible = true;
+    for (int i=0; i<tools.size(); i++) {
+      tools.get(i).visible = true;
+    }
+  }
+  
+  void setInvisible() {
+    visible = false;
+    for (int i=0; i<tools.size(); i++) {
+      tools.get(i).visible = false;
+    }
+  }
+  
+  void display() {
+    if (visible) {
+      for (int i=0; i<tools.size(); i++) {
+        tools.get(i).display();
+      }
+    }
+  }
+}
+
 class Interface {
   int x, y;
   int w, h;
+  boolean visible = true;
   
   Interface(int ix, int iy, int iw, int ih) {
     x = ix;
@@ -9,6 +73,12 @@ class Interface {
     h = ih;
   }
   
+  void setVisible() {
+    visible = true;
+  }
+  void setInvisible() {
+    visible = false;
+  }
   void updatePos(){}
   void display(){}
 }
@@ -19,7 +89,7 @@ class Clickable extends Interface {
   color pressedcolor = color(190);
   boolean pressed = false;
   boolean draggable = false;
-  boolean visible = true;
+  int shapeType = 0;
   
   Clickable(int ix, int iy, int iw, int ih, boolean d) {
     super(ix, iy, iw, ih);
@@ -67,7 +137,11 @@ class Clickable extends Interface {
       }
       stroke(0);
       fill(currentcolor);
-      rect(x, y, w, h);
+      if (shapeType == 0) {
+        rect(x, y, w, h);
+      } else {
+        ellipse(x+w/2, y+h/2, w, h);
+      }
     }
   }
 }
@@ -75,67 +149,49 @@ class Clickable extends Interface {
 class Slider extends Interface{
   String text;
   String unit;
-  int digits;
   int slideX, slideY;
   int slideLength;
   int boxx, boxy;
   int slidePos;
-  int val;
-  int maxVal;
+  int val, maxVal;
   Clickable box;
   int boxSize = 10;
   
-  Slider(int ix, int iy, int iw, int ih, int imv, String itext, int idigits, String iunit) {
+  Slider(int ix, int iy, int iw, int ih, int imv, String itext, String iunit) {
     super(ix, iy, iw, ih);
     text = itext;
     unit = iunit;
-    digits = idigits;
-    
-    int textWidth1 = int(textWidth(text));
-    slideX = x + textWidth1 + 15;
-    slideY = y + h/2;
-    String temp = iunit;
-    for (int i=0; i<digits; i++) {
-      temp += "0";
-    }
-    int textWidth2 = int(textWidth(temp));
-    
-    slideLength = w-textWidth1-textWidth2-30;
-    slidePos = slideLength;
     maxVal = imv;
     val = imv;
-    box = new Clickable(slideX+slidePos-boxSize/2, slideY - boxSize/2, boxSize, boxSize, true);
+    box = new Clickable(0, 0, boxSize, boxSize, true);
+    updatePos();
   }
   
   void updatePos() {
-    int textWidth1 = int(textWidth(text));
-    slideX = x + textWidth1 + 15;
-    slideY = y + h/2;
-    String temp = unit;
-    for (int i=0; i<digits; i++) {
-      temp += "0";
-    }
-    int textWidth2 = int(textWidth(temp));
+    int leftMargin = int(textWidth(text));
+    int rightMargin = int(textWidth(str(maxVal)+unit));
     
-    slideLength = w-textWidth1-textWidth2-30;
-    slidePos = slideLength;
+    slideX = x + leftMargin + 15;
+    slideY = y + h/2;
+    
+    slideLength = w-leftMargin-rightMargin-30;
+    slidePos = int((float)val/maxVal*slideLength);
   };
   
   void press() {
-    if(box.over()) {
-      box.press();
+    if (visible) {
+      if(box.over()) {
+        box.press();
+      }
     }
   }
   
   void release() {
-    box.release();
+    if (visible) {
+      box.release();
+    }
   }
-  
-  void setVals(int iv, int imv) {
-    val = iv;
-    maxVal = imv;
-    slidePos = int(((float)val/maxVal)*slideLength);
-  }
+
   
   void update() {
     if(box.pressed) {
@@ -149,22 +205,24 @@ class Slider extends Interface{
   }
   
   void display() {
-    update();
-    stroke(0);
-    fill(230);
-    rect(x, y, w, h);
-    fill(0);
-    text(text, x+5, slideY+fontSize/2);
-    line(slideX, slideY-1, slideX+slideLength, slideY-1);
-    line(slideX, slideY+1, slideX+slideLength, slideY+1);
-    stroke(colorMap(val, maxVal));
-    line(slideX, slideY, slideX+slidePos, slideY);
-    stroke(0);
-    fill(0);
-    text(str(val)+unit, slideX+slideLength + 10, slideY+fontSize/2);
-    box.x = slideX+slidePos-box.w/2;
-    box.y = slideY - box.w/2;
-    box.display();
+    if (visible) {
+      update();
+      stroke(0);
+      fill(230);
+      rect(x, y, w, h);
+      fill(0);
+      text(text, x+5, slideY+fontSize/2);
+      line(slideX, slideY-1, slideX+slideLength, slideY-1);
+      line(slideX, slideY+1, slideX+slideLength, slideY+1);
+      stroke(colorMap(val, maxVal));
+      line(slideX, slideY, slideX+slidePos, slideY);
+      stroke(0);
+      fill(0);
+      text(str(val)+unit, slideX+slideLength + 10, slideY+fontSize/2);
+      box.x = slideX+slidePos-box.w/2;
+      box.y = slideY - box.w/2;
+      box.display();
+    }
   }
 }
 
@@ -205,10 +263,37 @@ class TextButton extends Clickable {
   }
 }
 
-class PointButton extends Clickable {
+class Tool extends Clickable {
+  Toolbar toolbar;
+  ArrayList<Interface> tools;
+  int tx, ty;
+  String name;
   
-  PointButton (int ix, int iy, int iw, int ih) {
-    super(ix, iy, iw, ih, false);
+  Tool(int ix, int iy, String iName, Toolbar iToolbar) {
+    super(ix, iy, 24, 24, false);
+    name = iName;
+    toolbar = iToolbar;
+    tools = new ArrayList<Interface>();
+  }
+  
+  void press() {
+    for (int i=0; i<drawingTools.length; i++) {
+      Tool currTool = drawingTools[i];
+      currTool.release();
+    }
+    pressed = true;
+    currentTool = name;
+    toolbar.setTools(tools);
+    for (int i=0; i<drawingList.size(); i++) {
+      drawingList.get(i).endEdit();
+    }
+  }
+}
+
+class PointButton extends Tool {
+  
+  PointButton (int ix, int iy, Toolbar iToolbar) {
+    super(ix, iy, "Point", iToolbar);
   }
   
   void display () {
@@ -218,10 +303,10 @@ class PointButton extends Clickable {
   }
 }
 
-class LineButton extends Clickable {
+class LineButton extends Tool {
   
-  LineButton (int ix, int iy, int iw, int ih) {
-    super(ix, iy, iw, ih, false);
+  LineButton (int ix, int iy, Toolbar iToolbar) {
+    super(ix, iy, "Line", iToolbar);
   }
   
   void display () {
@@ -230,10 +315,10 @@ class LineButton extends Clickable {
   }
 }
 
-class CurveButton extends Clickable {
+class CurveButton extends Tool {
   
-  CurveButton (int ix, int iy, int iw, int ih) {
-    super(ix, iy, iw, ih, false);
+  CurveButton (int ix, int iy, Toolbar iToolbar) {
+    super(ix, iy, "Curve", iToolbar);
   }
   
   void display () {
@@ -242,10 +327,10 @@ class CurveButton extends Clickable {
   }
 }
 
-class RectButton extends Clickable {
+class RectButton extends Tool {
   
-  RectButton (int ix, int iy, int iw, int ih) {
-    super(ix, iy, iw, ih, false);
+  RectButton (int ix, int iy, Toolbar iToolbar) {
+    super(ix, iy, "Rect", iToolbar);
   }
   
   void display () {
@@ -254,10 +339,10 @@ class RectButton extends Clickable {
   }
 }
 
-class EllipseButton extends Clickable {
+class EllipseButton extends Tool {
   
-  EllipseButton (int ix, int iy, int iw, int ih) {
-    super(ix, iy, iw, ih, false);
+  EllipseButton (int ix, int iy, Toolbar iToolbar) {
+    super(ix, iy, "Ellipse", iToolbar);
   }
   
   void display () {
@@ -266,10 +351,10 @@ class EllipseButton extends Clickable {
   }
 }
 
-class ZoomInButton extends Clickable {
+class ZoomInButton extends Tool {
   
-  ZoomInButton (int ix, int iy, int iw, int ih) {
-    super(ix, iy, iw, ih, false);
+  ZoomInButton (int ix, int iy, Toolbar iToolbar) {
+    super(ix, iy, "ZoomIn", iToolbar);
   }
   
   void display () {
@@ -281,10 +366,10 @@ class ZoomInButton extends Clickable {
   }
 }
 
-class ZoomOutButton extends Clickable {
+class ZoomOutButton extends Tool {
   
-  ZoomOutButton (int ix, int iy, int iw, int ih) {
-    super(ix, iy, iw, ih, false);
+  ZoomOutButton (int ix, int iy, Toolbar iToolbar) {
+    super(ix, iy, "ZoomOut", iToolbar);
   }
   
   void display () {
@@ -292,5 +377,33 @@ class ZoomOutButton extends Clickable {
     ellipse(x+10, y+10, 12, 12);
     line(x+15, y+15, x+20, y+20);
     line(x+6, y+10, x+14, y+10);
+  }
+}
+
+class EditButton extends Tool {
+  
+  EditButton (int ix, int iy, Toolbar iToolbar) {
+    super(ix, iy, "Edit", iToolbar);
+  }
+  
+  void press() {
+    super.press();
+    for (int i=0; i<drawingList.size(); i++) {
+      drawingList.get(i).beginEdit();
+    }
+  }
+  
+  void display () {
+    super.display();
+    fill(255);
+    beginShape();
+    vertex(x+4, y+4);
+    vertex(x+19, y+9);
+    vertex(x+15, y+13);
+    vertex(x+21, y+19);
+    vertex(x+19, y+21);
+    vertex(x+13, y+15);
+    vertex(x+9, y+19);
+    endShape(CLOSE);
   }
 }
