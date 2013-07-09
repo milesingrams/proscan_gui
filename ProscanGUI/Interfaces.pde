@@ -151,7 +151,6 @@ class Slider extends Interface{
   String unit;
   int slideX, slideY;
   int slideLength;
-  int boxx, boxy;
   int slidePos;
   int val, maxVal;
   Clickable box;
@@ -164,6 +163,7 @@ class Slider extends Interface{
     maxVal = imv;
     val = imv;
     box = new Clickable(0, 0, boxSize, boxSize, true);
+    box.basecolor = color(245);
     updatePos();
   }
   
@@ -191,17 +191,12 @@ class Slider extends Interface{
       box.release();
     }
   }
-
   
   void update() {
     if(box.pressed) {
-      slidePos = lock(mouseX-slideX, 0, slideLength);
+      slidePos = min(max(mouseX-slideX, 0), slideLength);
       val = int((float(slidePos)/slideLength)*maxVal);
     }
-  }
-  
-  int lock(int val, int minv, int maxv) { 
-    return  min(max(val, minv), maxv); 
   }
   
   void display() {
@@ -214,7 +209,7 @@ class Slider extends Interface{
       text(text, x+5, slideY+fontSize/2);
       line(slideX, slideY-1, slideX+slideLength, slideY-1);
       line(slideX, slideY+1, slideX+slideLength, slideY+1);
-      stroke(colorMap(val, maxVal));
+      stroke(redblueColor(val, maxVal));
       line(slideX, slideY, slideX+slidePos, slideY);
       stroke(0);
       fill(0);
@@ -226,32 +221,119 @@ class Slider extends Interface{
   }
 }
 
-class TextBox extends Clickable {
+class TextBox extends Interface {
+  String name;
   String text;
+  float value;
+  int textY;
   boolean selected;
+  Clickable box;
   
-  TextBox(int ix, int iy, int iw, int ih, String itext) {
-    super(ix, iy, iw, ih, false);
-    basecolor = color(255);
-    pressedcolor = highlightcolor = color(230, 230, 255);
-    text = itext;
+  TextBox(int ix, int iy, int iw, int ih, String iName, float iValue) {
+    super(ix, iy, iw, ih);
+    name = iName;
+    int leftMargin = int(textWidth(name))+10;
+    box = new Clickable(0, 0, w-leftMargin-5, h-6, false);
+    box.basecolor = color(255);
+    box.pressedcolor = box.highlightcolor = color(237, 237, 255);
+    value = iValue;
+    text = str(value);
+    updatePos();
   }
   
+  void press() {
+    if (visible) {
+      if (box.over()) {
+        box.press();
+        selected = true;
+        if (mouseEvent.getClickCount() == 2) {
+          text = "";
+        }
+      } else {
+        release();
+      }
+    }
+  }
+  
+  void release() {
+    if (visible) {
+      box.release();
+      selected = false;
+      if (text.equals("")) {
+        value = 0;
+      } else {
+        value = parseFloat(text);
+      }
+      text = str(value);
+    }
+  }
+  
+  void setVal(float iValue) {
+    value = iValue;
+    text = str(value);
+  }
+  
+  void type(char c) {
+    if (visible) {
+      if (selected) {
+        text += c;
+        value = parseFloat(text);
+      }
+    }
+  }
+  
+  void delete() {
+    if (visible) {
+      if (selected) {
+        if (text.length() > 0) {
+          text = text.substring(0, text.length()-1);
+          value = parseFloat(text);
+        }
+      }
+    }
+  }
+  
+  int intVal() {
+    return int(value*10);
+  }
+  
+  void updatePos() {
+    int leftMargin = int(textWidth(name))+10;
+    box.x = x + leftMargin;
+    box.y = y+3;
+    box.w = w-leftMargin-5;
+    box.h = h-6;
+    textY = box.y+(box.h+fontSize)/2;
+  };
+  
   void display() {
-    super.display();
-    fill(0);
-    text(text, x+5, y+h/2+fontSize/2);
+    if (visible) {
+      stroke(0);
+      fill(230);
+      rect(x, y, w, h);
+      box.display();
+      fill(0);
+      text(name, x+5, textY);
+      text(text, box.x+5, textY);
+      stroke(0, 0, 255);
+      if (selected) {
+        if (second()%2 == 0) {
+          int cursorX = box.x+5+int(textWidth(text));
+          line(cursorX, box.y+3, cursorX, box.y+box.h-3);
+        }
+      }
+    }
   }
 }
 
 class TextButton extends Clickable {
-  String txt;
+  String text;
   
-  TextButton (int ix, int iy, int iw, int ih, String s) {
+  TextButton (int ix, int iy, int iw, int ih, String iText) {
     super(ix, iy, iw, ih, false);
-    txt = s;
+    text = iText;
     if (w == 0) {
-      w = int(textWidth(txt))+20;
+      w = int(textWidth(text))+20;
     }
     
   }
@@ -259,151 +341,6 @@ class TextButton extends Clickable {
   void display () {
     super.display();
     fill(0);
-    text(txt, x+10, y+h/2+fontSize/2);
-  }
-}
-
-class Tool extends Clickable {
-  Toolbar toolbar;
-  ArrayList<Interface> tools;
-  int tx, ty;
-  String name;
-  
-  Tool(int ix, int iy, String iName, Toolbar iToolbar) {
-    super(ix, iy, 24, 24, false);
-    name = iName;
-    toolbar = iToolbar;
-    tools = new ArrayList<Interface>();
-  }
-  
-  void press() {
-    for (int i=0; i<drawingTools.length; i++) {
-      Tool currTool = drawingTools[i];
-      currTool.release();
-    }
-    pressed = true;
-    currentTool = name;
-    toolbar.setTools(tools);
-    for (int i=0; i<drawingList.size(); i++) {
-      drawingList.get(i).endEdit();
-    }
-  }
-}
-
-class PointButton extends Tool {
-  
-  PointButton (int ix, int iy, Toolbar iToolbar) {
-    super(ix, iy, "Point", iToolbar);
-  }
-  
-  void display () {
-    super.display();
-    fill(0);
-    ellipse(x+w/2, y+h/2, 6, 6);
-  }
-}
-
-class LineButton extends Tool {
-  
-  LineButton (int ix, int iy, Toolbar iToolbar) {
-    super(ix, iy, "Line", iToolbar);
-  }
-  
-  void display () {
-    super.display();
-    line(x+3, y+h-3, x+21, y+3);
-  }
-}
-
-class CurveButton extends Tool {
-  
-  CurveButton (int ix, int iy, Toolbar iToolbar) {
-    super(ix, iy, "Curve", iToolbar);
-  }
-  
-  void display () {
-    super.display();
-    bezier(x+3, y+h-3, x+21, y+h-3, x+3, y+3, x+21, y+3);
-  }
-}
-
-class RectButton extends Tool {
-  
-  RectButton (int ix, int iy, Toolbar iToolbar) {
-    super(ix, iy, "Rect", iToolbar);
-  }
-  
-  void display () {
-    super.display();
-    rect(x+3, y+3, 18, 18);
-  }
-}
-
-class EllipseButton extends Tool {
-  
-  EllipseButton (int ix, int iy, Toolbar iToolbar) {
-    super(ix, iy, "Ellipse", iToolbar);
-  }
-  
-  void display () {
-    super.display();
-    ellipse(x+12, y+12, 18, 18);
-  }
-}
-
-class ZoomInButton extends Tool {
-  
-  ZoomInButton (int ix, int iy, Toolbar iToolbar) {
-    super(ix, iy, "ZoomIn", iToolbar);
-  }
-  
-  void display () {
-    super.display();
-    ellipse(x+10, y+10, 12, 12);
-    line(x+15, y+15, x+20, y+20);
-    line(x+6, y+10, x+14, y+10);
-    line(x+10, y+6, x+10, y+14);
-  }
-}
-
-class ZoomOutButton extends Tool {
-  
-  ZoomOutButton (int ix, int iy, Toolbar iToolbar) {
-    super(ix, iy, "ZoomOut", iToolbar);
-  }
-  
-  void display () {
-    super.display();
-    ellipse(x+10, y+10, 12, 12);
-    line(x+15, y+15, x+20, y+20);
-    line(x+6, y+10, x+14, y+10);
-  }
-}
-
-class EditButton extends Tool {
-  
-  EditButton (int ix, int iy, Toolbar iToolbar) {
-    super(ix, iy, "Edit", iToolbar);
-  }
-  
-  void press() {
-    super.press();
-    for (int i=0; i<drawingList.size(); i++) {
-      drawingList.get(i).beginEdit();
-    }
-  }
-  
-  void display () {
-    super.display();
-    fill(255);
-    beginShape();
-    vertex(x+4, y+4);
-    vertex(x+19, y+9);
-    vertex(x+15, y+13);
-    vertex(x+21, y+19);
-    vertex(x+19, y+21);
-    vertex(x+13, y+15);
-    vertex(x+9, y+19);
-    endShape(CLOSE);
+    text(text, x+10, y+h/2+fontSize/2);
   }
 }

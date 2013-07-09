@@ -183,7 +183,7 @@ class LineObj extends DrawingObj {
  
   void display() {
     update();
-    stroke(colorMap(speed, maxSpeed));
+    stroke(redblueColor(speed, maxSpeed));
     line(pxCoords[0], pyCoords[0], pxCoords[1], pyCoords[1]);
     displayButtons();
   }
@@ -211,7 +211,7 @@ class PointObj extends DrawingObj {
   void display() {
     update();
     stroke(0);
-    fill(colorMap(time, maxTime));
+    fill(redblueColor(time, maxTime));
     ellipse(pxCoords[0], pyCoords[0], 10, 10);
     displayButtons();
   }
@@ -235,7 +235,7 @@ class RectObj extends DrawingObj {
   
   void display() {
     update();
-    stroke(colorMap(speed, maxSpeed));
+    stroke(redblueColor(speed, maxSpeed));
     noFill();
     rect(pxCoords[0], pyCoords[0], pxCoords[1]-pxCoords[0], pyCoords[1]-pyCoords[0]);
     displayButtons();

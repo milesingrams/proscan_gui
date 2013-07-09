@@ -40,7 +40,7 @@ ArrayList<DrawingObj> parseStrings(String[] strings) {
   return (ArrayList<DrawingObj>)groups.get(0).objs.clone();
 }
 
- DrawingObj parseVals(String[] vals) {
+DrawingObj parseVals(String[] vals) {
   if (vals[0].equals("LINE")) {
     int speed = parseInt(vals[1].trim());
     int x1 = parseInt(vals[2].trim());
@@ -67,14 +67,27 @@ ArrayList<DrawingObj> parseStrings(String[] strings) {
   }
 }
 
-void setTool(Clickable tool, String toolName) {
-  for (int i=0; i<drawingTools.length; i++) {
-    Clickable currButton = (Clickable)drawingTools[i];
-    currButton.pressed = false;
+// Checks if mouse if over a region
+boolean inRegion(int x, int y, int bx1, int by1, int bx2, int by2) {
+  if (x >= bx1 && x <= bx2 || x >= bx1 && x <= bx2) {
+    if (y >= by1 && y <= by2 || y >= by1 && y <= by2) {
+      return true;
+    }
   }
-  for (int i=0; i<drawingList.size(); i++) {
-    drawingList.get(i).endEdit();
+  return false;
+}
+
+// Gives an intermediate between red and blue
+color redblueColor (int x, int maxX) {
+  return lerpColor(color(0, 0, 255), color(255, 0, 0), float(x)/maxX);
+}
+
+// Pauses running
+void hold (long time){
+  long t0,t1;
+  t0 = System.currentTimeMillis();
+  do {
+    t1=System.currentTimeMillis();
   }
-  tool.pressed = true;
-  currentTool = toolName;
+  while (t1-t0 < time);
 }

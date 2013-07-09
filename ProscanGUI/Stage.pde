@@ -12,7 +12,6 @@ class Stage {
     h = ih;
     rangeX = irx;
     rangeY = int((float(h)/w)*rangeX);
-    
     lowX = -rangeX/2;
     lowY = -rangeY/2;
   }
@@ -54,10 +53,18 @@ class Stage {
   }
   
   void setZoom(int ix, int iy, float zoom) {
-    lowX = int(ix-rangeX*zoom/2);
-    lowY = int(iy-rangeY*zoom/2);
-    rangeX *= zoom;
+    setPos(int(ix-rangeX*zoom/2), int(iy-rangeY*zoom/2), int(rangeX*zoom));
+  }
+  
+  void setPos(int ilx, int ily, int irx) {
+    lowX = ilx;
+    lowY = ily;
+    rangeX = irx;
     rangeY = int((float(h)/w)*rangeX);
+    updatePos();
+  }
+  
+  void updatePos() {
     for (int i=0; i<drawingList.size(); i++) {
       drawingList.get(i).updatePos();
     }
