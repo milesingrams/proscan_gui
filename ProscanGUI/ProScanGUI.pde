@@ -14,8 +14,8 @@ boolean runningCommand = false;
 boolean checkingPos = false;
 final int precision = 2;
 final int baseMoveSpeed = 60;
-int scopeX = 0;
-int scopeY = 0;
+float scopeX = 0;
+float scopeY = 0;
 ArrayList<Command> commandList;
 
 // Window info
@@ -29,16 +29,17 @@ Selection objSelection;
 ArrayList<DrawingObj> drawingList;
 
 // Interface
-int lastX;
-int lastY;
-final int maxSpeed = 100;
-final int maxTime = 10000;
+float lastX;
+float lastY;
+final float maxSpeed = 1000;
+final float maxTime = 10;
 int fontSize = 12;
 PFont font = createFont("Ariel", 12);
 String currentTool;
 boolean dragging = false;
 boolean selecting = false;
 
+// Toolbars
 Toolbar drawingToolbar;
 Toolbar chooserToolbar;
 Toolbar fileToolbar;
@@ -57,6 +58,8 @@ EditButton editButton;
 // Chooser Interfaces
 Slider timeSlider;
 Slider speedSlider;
+TextBox timeText;
+TextBox speedText;
 TextBox x1Text;
 TextBox y1Text;
 TextBox x2Text;
@@ -67,6 +70,8 @@ TextBox rangeXText;
 
 GroupButton groupButton;
 UngroupButton ungroupButton;
+CopyButton copyButton;
+PasteButton pasteButton;
 CreateButton createButton;
 SetButton setButton;
 
@@ -85,15 +90,15 @@ JFileChooser fileChooser;
 // initialization
 void setup() {
   // Stage init;
-  stage = new Stage(leftMargin, topMargin, 1000, 800, 1000);
+  stage = new Stage(leftMargin, topMargin, 1000, 800, 100);
+  size(leftMargin+stage.w+rightMargin, topMargin+stage.h+bottomMargin);
+  textFont(font);
   
   // Selection init;
-  objSelection = new Selection();
   drawingList = new ArrayList<DrawingObj>();
   commandList = new ArrayList<Command>();
   
   // Initialize Toolbars
-  
   // Function Buttons
   saveButton = new SaveButton(0, 0, 0, 24);
   loadButton = new LoadButton(0, 0, 0, 24);
@@ -104,8 +109,10 @@ void setup() {
   
   // Chooser Interfaces
   chooserToolbar = new Toolbar(leftMargin, 41);
-  timeSlider = new Slider(0, 0, 320, 24, maxTime, "Time", " ms");
-  speedSlider = new Slider(0, 0, 320, 24, maxSpeed, "Speed", " um/s");
+  timeText = new TextBox(0, 0, 120, 24, "Time (s): ", 0);
+  speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0);
+  timeSlider = new Slider(0, 0, 159, 24, maxTime, "Time", "%.1f", timeText);
+  speedSlider = new Slider(0, 0, 166, 24, maxSpeed, "Speed", "%.0f", speedText);
   x1Text = new TextBox(0, 0, 100, 24, "x1: ", 0);
   y1Text = new TextBox(0, 0, 100, 24, "y1: ", 0);
   x2Text = new TextBox(0, 0, 100, 24, "x2: ", 0);
@@ -117,16 +124,20 @@ void setup() {
   setButton = new SetButton(0, 0, 0, 24);
   groupButton = new GroupButton(0, 0, 0, 24);
   ungroupButton = new UngroupButton(0, 0, 0, 24);
+  copyButton = new CopyButton(0, 0, 0, 24);
+  pasteButton = new PasteButton(0, 0, 0, 24);
   
   // Tools
   pointButton = new PointButton(0, 0, chooserToolbar);
     pointButton.tools.add(timeSlider);
+    pointButton.tools.add(timeText);
     pointButton.tools.add(x1Text);
     pointButton.tools.add(y1Text);
     pointButton.tools.add(createButton);
     
   lineButton = new LineButton(0, 0, chooserToolbar);
     lineButton.tools.add(speedSlider);
+    lineButton.tools.add(speedText);
     lineButton.tools.add(x1Text);
     lineButton.tools.add(y1Text);
     lineButton.tools.add(x2Text);
@@ -135,6 +146,7 @@ void setup() {
     
   curveButton = new CurveButton(0, 0, chooserToolbar);
     curveButton.tools.add(speedSlider);
+    curveButton.tools.add(speedText);
     curveButton.tools.add(x1Text);
     curveButton.tools.add(y1Text);
     curveButton.tools.add(x2Text);
@@ -143,6 +155,7 @@ void setup() {
     
   rectButton = new RectButton(0, 0, chooserToolbar);
     rectButton.tools.add(speedSlider);
+    rectButton.tools.add(speedText);
     rectButton.tools.add(x1Text);
     rectButton.tools.add(y1Text);
     rectButton.tools.add(x2Text);
@@ -151,6 +164,7 @@ void setup() {
     
   ellipseButton = new EllipseButton(0, 0, chooserToolbar);
     ellipseButton.tools.add(speedSlider);
+    ellipseButton.tools.add(speedText);
     ellipseButton.tools.add(x1Text);
     ellipseButton.tools.add(y1Text);
     ellipseButton.tools.add(x2Text);
@@ -177,6 +191,8 @@ void setup() {
     editButton.tools.add(setButton);
     editButton.tools.add(groupButton);
     editButton.tools.add(ungroupButton);
+    editButton.tools.add(copyButton);
+    editButton.tools.add(pasteButton);
   
   // Toolbars
   drawingToolbar = new Toolbar(leftMargin, 12);
@@ -205,17 +221,11 @@ void setup() {
   controlTools.add(runButton);
   controlToolbar.setTools(controlTools);
   
-
-  pointButton.choose();
-  // File Chooser Init
+  // Make Selection and Filechooser
+  objSelection = new Selection();
   fileChooser = new JFileChooser();
-  
   fileChooser.setCurrentDirectory(new File(sketchPath("")+"Saves/"));
-  size(leftMargin+stage.w+rightMargin, topMargin+stage.h+bottomMargin);
-  textFont(font);
-  
-  // In case you want to see the list of available serialConns
-  //println(Serial.list());
+  pointButton.choose();
   
   /*
   // connect to solenoid
@@ -259,6 +269,12 @@ void draw() {
     if (currentDraw != null) {
       currentDraw.xCoords[1] = stage.toGrid(stage.localMouseX());
       currentDraw.yCoords[1] = stage.toGrid(stage.localMouseY());
+      if (currentTool.equals("CURVE")) {
+        currentDraw.xCoords[2] = currentDraw.xCoords[0]+(currentDraw.xCoords[1]-currentDraw.xCoords[0])*0.33;
+        currentDraw.yCoords[2] = currentDraw.yCoords[0]+(currentDraw.yCoords[1]-currentDraw.yCoords[0])*0.33;
+        currentDraw.xCoords[3] = currentDraw.xCoords[0]+(currentDraw.xCoords[1]-currentDraw.xCoords[0])*0.66;
+        currentDraw.yCoords[3] = currentDraw.yCoords[0]+(currentDraw.yCoords[1]-currentDraw.yCoords[0])*0.66;
+      }
       currentDraw.updatePos();
       currentDraw.display();
     }
@@ -305,54 +321,58 @@ void keyPressed() {
     y1Text.delete();
     x2Text.delete();
     y2Text.delete();
+    timeText.delete();
+    speedText.delete();
+    lowXText.delete();
+    lowYText.delete();
+    rangeXText.delete();
   } else {
-    char[] numeric = new char[]{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.'};
+    char[] numeric = new char[]{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '-'};
     for (int i=0; i<numeric.length; i++) {
       if (key == numeric[i]) {
         x1Text.type(key);
         y1Text.type(key);
         x2Text.type(key);
         y2Text.type(key);
+        timeText.type(key);
+        speedText.type(key);
+        lowXText.type(key);
+        lowYText.type(key);
+        rangeXText.type(key);
+        if (timeText.selected) {
+          timeSlider.setVal(timeText.val);
+        }
+        if (speedText.selected) {
+          speedSlider.setVal(speedText.val);
+        }
       }
     }
   }
 }
 
-
-
 void mousePressed() {
-  
   if (mouseButton == LEFT) {  
     // Set Tools/Buttons
-    timeSlider.press();
-    speedSlider.press();
-    x1Text.press();
-    y1Text.press();
-    x2Text.press();
-    y2Text.press();
-    lowXText.press();
-    lowYText.press();
-    rangeXText.press();
-    saveButton.press();
-    loadButton.press();
-    posButton.press();
-    zeroButton.press();
-    stopButton.press();
-    runButton.press();
-    createButton.press();
-    setButton.press();
-    groupButton.press();
-    ungroupButton.press();
+    for (int i=0; i<chooserToolbar.tools.size(); i++) {
+      chooserToolbar.tools.get(i).press();
+    }
+    
+    for (int i=0; i<fileToolbar.tools.size(); i++) {
+      fileToolbar.tools.get(i).press();
+    }
+    
+    for (int i=0; i<controlToolbar.tools.size(); i++) {
+      controlToolbar.tools.get(i).press();
+    }
     
     for (int i=0; i<drawingToolbar.tools.size(); i++) {
-      Tool currTool = (Tool)drawingToolbar.tools.get(i);
-      currTool.press();
+      drawingToolbar.tools.get(i).press();
     }
     
     // BEGIN OBJECT DRAW
     if (stage.mouseOver()) {
-      int localX = stage.toGrid(stage.globalToLocalX(mouseX));
-      int localY = stage.toGrid(stage.globalToLocalY(mouseY));
+      float localX = stage.toGrid(stage.globalToLocalX(mouseX));
+      float localY = stage.toGrid(stage.globalToLocalY(mouseY));
       if (currentTool.equals("POINT")) {
         // adds point
         drawingList.add(new PointObj(timeSlider.val, localX, localY));
@@ -360,8 +380,14 @@ void mousePressed() {
       if (currentTool.equals("LINE")) {
         currentDraw = new LineObj(speedSlider.val, localX, localY, 0, 0);
       } else
+      if (currentTool.equals("CURVE")) {
+        currentDraw = new CurveObj(speedSlider.val, localX, localY, 0, 0);
+      } else
       if (currentTool.equals("RECT")) {
         currentDraw = new RectObj(speedSlider.val, localX, localY, 0, 0);
+      } else
+      if (currentTool.equals("ELLIPSE")) {
+        currentDraw = new EllipseObj(speedSlider.val, localX, localY, 0, 0);
       } else
       if (currentTool.equals("ZOOMIN")) {
         stage.setZoom(localX, localY, 0.5);
@@ -370,10 +396,10 @@ void mousePressed() {
         stage.setZoom(localX, localY, 2);
       } else
       if (currentTool.equals("EDIT")) {
+        objSelection.press();
         for (int i=0; i<drawingList.size(); i++) {
           drawingList.get(i).press();
         }
-        objSelection.press();
         if (dragging == false) {
           if (stage.mouseOver()) {
             lastX = stage.globalToLocalX(mouseX);
@@ -391,21 +417,18 @@ void mouseReleased() {
   if (mouseButton == LEFT) {
     timeSlider.release();
     speedSlider.release();
-    for (int i=0; i<drawingList.size(); i++) {
-      drawingList.get(i).release();
-    }
-    objSelection.release();
     
     // END OBJECT DRAW
     if (stage.mouseOver()) {
       if (currentDraw != null) {
-        currentDraw.xCoords[1] = stage.toGrid(stage.localMouseX());
-        currentDraw.yCoords[1] = stage.toGrid(stage.localMouseY());
-        currentDraw.updatePos();
         drawingList.add(currentDraw);
         currentDraw = null;
       }
       if (currentTool.equals("EDIT")) {
+        for (int i=0; i<drawingList.size(); i++) {
+          drawingList.get(i).release();
+        }
+        objSelection.release();
         if (selecting) {
           if (!(keyPressed && keyCode == SHIFT)) {
             objSelection.deselect();
@@ -419,7 +442,9 @@ void mouseReleased() {
               }
             }
           }
-          objSelection.insert(tempObjs);
+          if (tempObjs.size() > 0) {
+            objSelection.insert(tempObjs);
+          }
           selecting = false;
         }
       }
@@ -428,8 +453,8 @@ void mouseReleased() {
 }
 
 // Called whenever there is something available to read
-void serialEvent(Serial serialConn) {
-  // Data from the Serial serialConn is read in serialEvent() using the readStringUntil() function with * as the end character.
+void serialEvent(Serial srialConn) {
+  // Dathe Serial serialConn isread in serialEvent() using the readStringUntil() function with * as the end character.
   String input = serialConn.readStringUntil('\r');
   
   if (firstContact == false) {
@@ -449,11 +474,11 @@ void serialEvent(Serial serialConn) {
             checkingPos = true;
             serialConn.write("PS\r");
           } else {
-            int newScopeX = parseInt(vals[0].trim());
-            int newScopeY = parseInt(vals[1].trim());
+            float newScopeX = float(parseInt(vals[0].trim()))/10;
+            float newScopeY = float(parseInt(vals[1].trim()))/10;
             
-            int distX = abs(currMoveCommand.destX-newScopeX);
-            int distY = abs(currMoveCommand.destY-newScopeY);
+            float distX = abs(currMoveCommand.destX-newScopeX);
+            float distY = abs(currMoveCommand.destY-newScopeY);
             float dist = sqrt(pow(distX, 2)+pow(distY, 2));
             
             if (currMoveCommand.shutter == true && shutter == false) {
@@ -478,8 +503,8 @@ void serialEvent(Serial serialConn) {
         if (currCommand instanceof TextCommand) {
           TextCommand currTextCommand = (TextCommand)currCommand;
           if (currTextCommand.command.equals("PS")) {
-            scopeX = parseInt(vals[0].trim());
-            scopeY = parseInt(vals[1].trim());
+            scopeX = float(parseInt(vals[0].trim()))/10;
+            scopeY = float(parseInt(vals[1].trim()))/10;
           }
           runningCommand = false;
           commandList.remove(0);

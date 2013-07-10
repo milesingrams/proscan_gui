@@ -81,6 +81,8 @@ class Interface {
   }
   void updatePos(){}
   void display(){}
+  void press(){}
+  void release(){}
 }
 
 class Clickable extends Interface {
@@ -148,20 +150,24 @@ class Clickable extends Interface {
 
 class Slider extends Interface{
   String text;
-  String unit;
   int slideX, slideY;
   int slideLength;
   int slidePos;
-  int val, maxVal;
+  int decimals;
+  String stringFormat;
+  float val, maxVal;
   Clickable box;
+  TextBox textBox;
   int boxSize = 10;
   
-  Slider(int ix, int iy, int iw, int ih, int imv, String itext, String iunit) {
+  Slider(int ix, int iy, int iw, int ih, float imv, String itext, String format, TextBox iTextBox) {
     super(ix, iy, iw, ih);
     text = itext;
-    unit = iunit;
     maxVal = imv;
     val = imv;
+    stringFormat = format;
+    textBox = iTextBox;
+    textBox.setVal(parseFloat(String.format(stringFormat, val)));
     box = new Clickable(0, 0, boxSize, boxSize, true);
     box.basecolor = color(245);
     updatePos();
@@ -169,13 +175,12 @@ class Slider extends Interface{
   
   void updatePos() {
     int leftMargin = int(textWidth(text));
-    int rightMargin = int(textWidth(str(maxVal)+unit));
     
     slideX = x + leftMargin + 15;
     slideY = y + h/2;
     
-    slideLength = w-leftMargin-rightMargin-30;
-    slidePos = int((float)val/maxVal*slideLength);
+    slideLength = w-leftMargin-30;
+    slidePos = int(val/maxVal*slideLength);
   };
   
   void press() {
@@ -184,6 +189,11 @@ class Slider extends Interface{
         box.press();
       }
     }
+  }
+  
+  void setVal(float ival) {
+    val = min(max(ival, 0), maxVal);
+    slidePos = int(val/maxVal*slideLength);
   }
   
   void release() {
@@ -195,7 +205,8 @@ class Slider extends Interface{
   void update() {
     if(box.pressed) {
       slidePos = min(max(mouseX-slideX, 0), slideLength);
-      val = int((float(slidePos)/slideLength)*maxVal);
+      val = maxVal*slidePos/slideLength;
+      textBox.setVal(parseFloat(String.format(stringFormat, val)));
     }
   }
   
@@ -211,9 +222,6 @@ class Slider extends Interface{
       line(slideX, slideY+1, slideX+slideLength, slideY+1);
       stroke(redblueColor(val, maxVal));
       line(slideX, slideY, slideX+slidePos, slideY);
-      stroke(0);
-      fill(0);
-      text(str(val)+unit, slideX+slideLength + 10, slideY+fontSize/2);
       box.x = slideX+slidePos-box.w/2;
       box.y = slideY - box.w/2;
       box.display();
@@ -224,20 +232,20 @@ class Slider extends Interface{
 class TextBox extends Interface {
   String name;
   String text;
-  float value;
+  float val;
   int textY;
   boolean selected;
   Clickable box;
   
-  TextBox(int ix, int iy, int iw, int ih, String iName, float iValue) {
+  TextBox(int ix, int iy, int iw, int ih, String iName, float iVal) {
     super(ix, iy, iw, ih);
     name = iName;
     int leftMargin = int(textWidth(name))+10;
     box = new Clickable(0, 0, w-leftMargin-5, h-6, false);
     box.basecolor = color(255);
     box.pressedcolor = box.highlightcolor = color(237, 237, 255);
-    value = iValue;
-    text = str(value);
+    val = iVal;
+    text = str(val);
     updatePos();
   }
   
@@ -259,25 +267,27 @@ class TextBox extends Interface {
     if (visible) {
       box.release();
       selected = false;
-      if (text.equals("")) {
-        value = 0;
+      if (text.length() == 0) {
+        val = 0;
       } else {
-        value = parseFloat(text);
+        val = parseFloat(text);
       }
-      text = str(value);
+      text = str(val);
     }
   }
   
-  void setVal(float iValue) {
-    value = iValue;
-    text = str(value);
+  void setVal(float iVal) {
+    if (!selected) {
+      val = iVal;
+      text = str(val);
+    }
   }
   
   void type(char c) {
     if (visible) {
       if (selected) {
         text += c;
-        value = parseFloat(text);
+        val = parseFloat(text);
       }
     }
   }
@@ -287,14 +297,10 @@ class TextBox extends Interface {
       if (selected) {
         if (text.length() > 0) {
           text = text.substring(0, text.length()-1);
-          value = parseFloat(text);
+          val = parseFloat(text);
         }
       }
     }
-  }
-  
-  int intVal() {
-    return int(value*10);
   }
   
   void updatePos() {

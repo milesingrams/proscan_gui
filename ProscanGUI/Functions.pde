@@ -16,6 +16,7 @@ void loadData() {
   if (returnVal == JFileChooser.APPROVE_OPTION) { 
     File file = fileChooser.getSelectedFile();
     drawingList.clear();
+    objSelection.deselect();
     drawingList = parseStrings(loadStrings(file.getPath()));
   }
 }
@@ -41,34 +42,53 @@ ArrayList<DrawingObj> parseStrings(String[] strings) {
 }
 
 DrawingObj parseVals(String[] vals) {
-  if (vals[0].equals("LINE")) {
-    int speed = parseInt(vals[1].trim());
-    int x1 = parseInt(vals[2].trim());
-    int y1 = parseInt(vals[3].trim());
-    int x2 = parseInt(vals[4].trim());
-    int y2 = parseInt(vals[5].trim());
-    return new LineObj(speed, x1, y1, x2, y2);
-  } else 
-  if (vals[0].equals("RECT")) {
-    int speed = parseInt(vals[1].trim());
-    int x1 = parseInt(vals[2].trim());
-    int y1 = parseInt(vals[3].trim());
-    int x2 = parseInt(vals[4].trim());
-    int y2 = parseInt(vals[5].trim());
-    return new RectObj(speed, x1, y1, x2, y2);
-  } else
   if (vals[0].equals("POINT")) {
     int time = parseInt(vals[1].trim());
-    int x = parseInt(vals[2].trim());
-    int y = parseInt(vals[3].trim());
+    float x = parseFloat(vals[2].trim());
+    float y = parseFloat(vals[3].trim());
     return new PointObj(time, x, y);
+  } else
+  if (vals[0].equals("LINE")) {
+    int speed = parseInt(vals[1].trim());
+    float x1 = parseFloat(vals[2].trim());
+    float y1 = parseFloat(vals[3].trim());
+    float x2 = parseFloat(vals[4].trim());
+    float y2 = parseFloat(vals[5].trim());
+    return new LineObj(speed, x1, y1, x2, y2);
+  } else 
+  if (vals[0].equals("CURVE")) {
+    int speed = parseInt(vals[1].trim());
+    float x1 = parseFloat(vals[2].trim());
+    float y1 = parseFloat(vals[3].trim());
+    float x2 = parseFloat(vals[4].trim());
+    float y2 = parseFloat(vals[5].trim());
+    float cx1 = parseFloat(vals[6].trim());
+    float cy1 = parseFloat(vals[7].trim());
+    float cx2 = parseFloat(vals[8].trim());
+    float cy2 = parseFloat(vals[9].trim());
+    return new CurveObj(speed, x1, y1, x2, y2, cx1, cy1, cx2, cy2);
+  } else
+  if (vals[0].equals("RECT")) {
+    int speed = parseInt(vals[1].trim());
+    float x1 = parseFloat(vals[2].trim());
+    float y1 = parseFloat(vals[3].trim());
+    float x2 = parseFloat(vals[4].trim());
+    float y2 = parseFloat(vals[5].trim());
+    return new RectObj(speed, x1, y1, x2, y2);
+  } else
+  if (vals[0].equals("ELLIPSE")) {
+    int speed = parseInt(vals[1].trim());
+    float x1 = parseFloat(vals[2].trim());
+    float y1 = parseFloat(vals[3].trim());
+    float x2 = parseFloat(vals[4].trim());
+    float y2 = parseFloat(vals[5].trim());
+    return new EllipseObj(speed, x1, y1, x2, y2);
   } else {
-    return new DrawingObj(new int[]{}, new int[]{});
+    return new DrawingObj(new float[]{}, new float[]{});
   }
 }
 
-// Checks if mouse if over a region
-boolean inRegion(int x, int y, int bx1, int by1, int bx2, int by2) {
+boolean inRegion(float x, float y, float bx1, float by1, float bx2, float by2) {
   if (x >= bx1 && x <= bx2 || x >= bx1 && x <= bx2) {
     if (y >= by1 && y <= by2 || y >= by1 && y <= by2) {
       return true;
@@ -78,8 +98,8 @@ boolean inRegion(int x, int y, int bx1, int by1, int bx2, int by2) {
 }
 
 // Gives an intermediate between red and blue
-color redblueColor (int x, int maxX) {
-  return lerpColor(color(0, 0, 255), color(255, 0, 0), float(x)/maxX);
+color redblueColor (float x, float maxX) {
+  return lerpColor(color(0, 0, 255), color(255, 0, 0), x/maxX);
 }
 
 // Pauses running

@@ -1,26 +1,26 @@
 class DrawingObj {
   int numCoords;
-  int[] xCoords;
-  int[] yCoords;
+  float[] xCoords;
+  float[] yCoords;
   int[] pxCoords;
   int[] pyCoords;
-  int midX;
-  int midY;
-  int[] relativeCoordsX;
-  int[] relativeCoordsY;
+  float midX;
+  float midY;
+  float[] relativeCoordsX;
+  float[] relativeCoordsY;
   Clickable[] vertexButtons;
   Clickable dragButton;
   int buttonSize = 6;
   boolean selected;
   
-  DrawingObj (int[] ixCoords, int[] iyCoords) {
+  DrawingObj (float[] ixCoords, float[] iyCoords) {
     numCoords = ixCoords.length;
     xCoords = ixCoords;
     yCoords = iyCoords;
     pxCoords = new int[numCoords];
     pyCoords = new int[numCoords];
-    relativeCoordsX = new int[numCoords];
-    relativeCoordsY = new int[numCoords];
+    relativeCoordsX = new float[numCoords];
+    relativeCoordsY = new float[numCoords];
     selected = false;
     
     vertexButtons = new Clickable[numCoords];
@@ -31,7 +31,6 @@ class DrawingObj {
     }
     dragButton = new Clickable(0, 0, buttonSize, buttonSize, true);
     dragButton.visible = false;
-    
     updatePos();
   }
   
@@ -74,6 +73,12 @@ class DrawingObj {
     }
   }
   
+  void setPos(float[] ixCoords, float[] iyCoords) {
+    xCoords = ixCoords;
+    yCoords = iyCoords;
+    updatePos();
+  }
+  
   void press() {
     if (dragButton.over()) {
       dragButton.press();
@@ -93,37 +98,19 @@ class DrawingObj {
     }
   }
   
-  void beginEdit() {
+  void select() {
+    selected = true;
     dragButton.visible = true;
     for (int i=0; i<numCoords; i++) {
       vertexButtons[i].visible = true;
     }
   }
   
-  void endEdit() {
+  void deselect() {
+    selected = false;
     dragButton.visible = false;
     for (int i=0; i<numCoords; i++) {
       vertexButtons[i].visible = false;
-    }
-  }
-  
-  void select() {
-    selected = true;
-    dragButton.basecolor = color(0, 255, 0);
-    dragButton.pressedcolor = dragButton.highlightcolor = color(0, 200, 0);
-    for (int i=0; i<numCoords; i++) {
-      vertexButtons[i].basecolor = color(0, 255, 0);
-      vertexButtons[i].pressedcolor = vertexButtons[i].highlightcolor = color(0, 200, 0);
-    }
-  }
-  
-  void deselect() {
-    selected = false;
-    dragButton.basecolor = color(230);
-    dragButton.pressedcolor = dragButton.highlightcolor = color(190);
-    for (int i=0; i<numCoords; i++) {
-      vertexButtons[i].basecolor = color(230);
-      vertexButtons[i].pressedcolor = vertexButtons[i].highlightcolor = color(190);
     }
   }
   
@@ -133,33 +120,41 @@ class DrawingObj {
     }
   }
   
-  int minX() {
+  float minX() {
     return min(xCoords);
   }
-  int minY() {
+  float minY() {
     return min(yCoords);
   }
-  int maxX() {
+  float maxX() {
     return max(xCoords);
   }
-  int maxY() {
+  float maxY() {
     return max(yCoords);
   }
-  int midX() {
+  float midX() {
     return (minX()+maxX())/2;
   }
-  int midY() {
+  float midY() {
     return (minY()+maxY())/2;
   }
   
-  boolean inBounds(int ix1, int iy1, int ix2, int iy2) {
-    boolean allin = true;
-    for (int i=0; i<numCoords; i++) {
-      if (inRegion(xCoords[i], yCoords[i], ix1, iy1, ix2, iy2) == false) {
-        allin = false;
+  boolean inBounds(float ix1, float iy1, float ix2, float iy2) {
+    if (inRegion(midX(), midY(), ix1, iy1, ix2, iy2)) {
+      int vertexCount = 0;
+      for (int i=0; i<numCoords; i++) {
+        if (inRegion(int(xCoords[i]), int(yCoords[i]), int(ix1), int(iy1), int(ix2), int(iy2))) {
+          vertexCount++;
+        }
       }
+      if (vertexCount >= numCoords/2) {
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      return false;
     }
-    return allin;
   }
   
   void displayButtons() {
@@ -173,38 +168,11 @@ class DrawingObj {
   void makeCommands(){}
 }
 
-class LineObj extends DrawingObj {
-  int speed; // single bar width
- 
-  LineObj(int s, int ix1, int iy1, int ix2, int iy2) {
-    super(new int[]{ix1, ix2}, new int[]{iy1, iy2});
-    speed = s;
-  }
- 
-  void display() {
-    update();
-    stroke(redblueColor(speed, maxSpeed));
-    line(pxCoords[0], pyCoords[0], pxCoords[1], pyCoords[1]);
-    displayButtons();
-  }
-  
-  void makeCommands() {
-    addCommand(new TextCommand("SMS", str(baseMoveSpeed)));
-    addCommand(new MoveCommand(xCoords[0], yCoords[0], false));
-    addCommand(new TextCommand("SMS", str(speed)));
-    addCommand(new MoveCommand(xCoords[1], yCoords[1], true));
-  }
-  
-  String toString() {
-    return "LINE "+speed+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
-  }
-}
-
 class PointObj extends DrawingObj {
-  int time; // single bar width
+  float time; // single bar width
  
-  PointObj(int it, int ix, int iy) {
-    super(new int[]{ix}, new int[]{iy});
+  PointObj(float it, float ix, float iy) {
+    super(new float[]{ix}, new float[]{iy});
     time = it;
   }
  
@@ -225,18 +193,87 @@ class PointObj extends DrawingObj {
   }
 }
 
-class RectObj extends DrawingObj {
-  int speed; // single bar width
+class LineObj extends DrawingObj {
+  float speed; // single bar width
  
-  RectObj(int s, int ix1, int iy1, int ix2, int iy2) {
-    super(new int[]{ix1, ix2}, new int[]{iy1, iy2});
+  LineObj(float s, float ix1, float iy1, float ix2, float iy2) {
+    super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
+    speed = s;
+  }
+ 
+  void display() {
+    update();
+    noFill();
+    stroke(redblueColor(speed, maxSpeed));
+    line(pxCoords[0], pyCoords[0], pxCoords[1], pyCoords[1]);
+    displayButtons();
+  }
+  
+  void makeCommands() {
+    addCommand(new TextCommand("SMS", str(baseMoveSpeed)));
+    addCommand(new MoveCommand(xCoords[0], yCoords[0], false));
+    addCommand(new TextCommand("SMS", str(speed)));
+    addCommand(new MoveCommand(xCoords[1], yCoords[1], true));
+  }
+  
+  String toString() {
+    return "LINE "+speed+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
+  }
+}
+
+class CurveObj extends DrawingObj {
+  float speed; // single bar width
+  float detail = 10;
+  
+  CurveObj(float s, float ix1, float iy1, float ix2, float iy2) {
+    super(new float[]{ix1, ix2, ix1, ix2}, new float[]{iy1, iy2, iy1, iy2});
+    speed = s;
+    
+  }
+  
+  CurveObj(float s, float ix1, float iy1, float ix2, float iy2, float cx1, float cy1, float cx2, float cy2) {
+    super(new float[]{ix1, ix2, cx1, cx2}, new float[]{iy1, iy2, cy1, cy2});
+    speed = s;
+  }
+ 
+  void display() {
+    update();
+    noFill();
+    stroke(220);
+    line(pxCoords[0], pyCoords[0], pxCoords[2], pyCoords[2]);
+    line(pxCoords[1], pyCoords[1], pxCoords[3], pyCoords[3]);
+    stroke(redblueColor(speed, maxSpeed));
+    beginShape();
+    for (int i=0; i<=detail; i++) {
+      float px = bezierPoint(pxCoords[0], pxCoords[2], pxCoords[3], pxCoords[1], i/detail);
+      float py = bezierPoint(pyCoords[0], pyCoords[2], pyCoords[3], pyCoords[1], i/detail); 
+      vertex(px, py);
+    }
+    endShape();
+    displayButtons();
+  }
+  
+  void makeCommands() {
+    
+  }
+  
+  String toString() {
+    return "CURVE "+speed+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1]+" "+xCoords[2]+" "+yCoords[2]+" "+xCoords[3]+" "+yCoords[3];
+  }
+}
+
+class RectObj extends DrawingObj {
+  float speed; // single bar width
+ 
+  RectObj(float s, float ix1, float iy1, float ix2, float iy2) {
+    super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
     speed = s;
   }
   
   void display() {
     update();
-    stroke(redblueColor(speed, maxSpeed));
     noFill();
+    stroke(redblueColor(speed, maxSpeed));
     rect(pxCoords[0], pyCoords[0], pxCoords[1]-pxCoords[0], pyCoords[1]-pyCoords[0]);
     displayButtons();
   }
@@ -248,22 +285,76 @@ class RectObj extends DrawingObj {
     return "RECT "+speed+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
   }
 }
+
+class EllipseObj extends DrawingObj {
+  float speed; // single bar width
+  float detail = 5;
+ 
+  EllipseObj(float s, float ix1, float iy1, float ix2, float iy2) {
+    super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
+    speed = s;
+  }
   
+  void display() {
+    update();
+    noFill();
+    stroke(redblueColor(speed, maxSpeed));
+    int lx = pxCoords[0];
+    int hx = pxCoords[1];
+    int ly = pyCoords[0];
+    int hy = pyCoords[1];
+    int mx = int(float(lx+hx)/2);
+    int my = int(float(ly+hy)/2);
+    int xDist = int(float(hx-lx)/2*0.552);
+    int yDist = int(float(hy-ly)/2*0.552);
+
+    beginShape();
+    for (int i=0; i<=detail; i++) {
+      float px = bezierPoint(lx, lx, mx-xDist, mx, i/detail);
+      float py = bezierPoint(my, my-yDist, ly, ly, i/detail);
+      vertex(px, py);
+    }
+    for (int i=0; i<=detail; i++) {
+      float px = bezierPoint(mx, mx+xDist, hx, hx, i/detail);
+      float py = bezierPoint(ly, ly, my-yDist, my, i/detail);
+      vertex(px, py);
+    }
+    for (int i=0; i<=detail; i++) {
+      float px = bezierPoint(hx, hx, mx+xDist, mx, i/detail);
+      float py = bezierPoint(my, my+yDist, hy, hy, i/detail);
+      vertex(px, py);
+    }
+    for (int i=0; i<=detail; i++) {
+      float px = bezierPoint(mx, mx-xDist, lx, lx, i/detail);
+      float py = bezierPoint(hy, hy, my+yDist, my, i/detail);
+      vertex(px, py);
+    }
+    endShape();
+    displayButtons();
+  }
+  
+  void makeCommands() {
+  }
+  
+  String toString() {
+    return "ELLIPSE "+speed+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
+  }
+}
 
 class GroupObj extends DrawingObj {
-  int w, h;
+  float w, h;
   ArrayList<DrawingObj> objs;
   ArrayList<float[]> relativeX;
   ArrayList<float[]> relativeY;
   
   GroupObj() {
-    super(new int[]{0, 0}, new int[]{0, 0});
+    super(new float[]{0, 0}, new float[]{0, 0});
     objs = new ArrayList<DrawingObj>();
     init();
   }
   
   GroupObj(ArrayList<DrawingObj> iObjs) {
-    super(new int[]{0, 0}, new int[]{0, 0});
+    super(new float[]{0, 0}, new float[]{0, 0});
     objs = iObjs;
     init();
   }
@@ -309,11 +400,6 @@ class GroupObj extends DrawingObj {
       h = yCoords[1]-yCoords[0];
       
       setRelativePos();
-    } else {
-      xCoords[0] = xCoords[1] = 0;
-      yCoords[0] = yCoords[1] = 0;
-      w = 0;
-      h = 0;
     }
     updatePos();
   }
@@ -328,12 +414,12 @@ class GroupObj extends DrawingObj {
       float[] tempRelY = new float[currObj.numCoords];
       for (int j=0; j<currObj.numCoords; j++) {
         if (w > 0) {
-          tempRelX[j] = float(currObj.xCoords[j]-xCoords[0])/w;
+          tempRelX[j] = (currObj.xCoords[j]-xCoords[0])/w;
         } else {
           tempRelX[j] = 0;
         }
         if (h > 0) {
-          tempRelY[j] = float(currObj.yCoords[j]-yCoords[0])/h;
+          tempRelY[j] = (currObj.yCoords[j]-yCoords[0])/h;
         } else {
           tempRelY[j] = 0;
         }
@@ -350,8 +436,8 @@ class GroupObj extends DrawingObj {
         float[] tempRelX = relativeX.get(i);
         float[] tempRelY = relativeY.get(i);
         for (int j=0; j<currObj.numCoords; j++) {
-          currObj.xCoords[j] = xCoords[0] + int(tempRelX[j]*w);
-          currObj.yCoords[j] = yCoords[0] + int(tempRelY[j]*h);
+          currObj.xCoords[j] = xCoords[0] + tempRelX[j]*w;
+          currObj.yCoords[j] = yCoords[0] + tempRelY[j]*h;
         }
         currObj.updatePos();
       }
@@ -363,8 +449,8 @@ class GroupObj extends DrawingObj {
     for (int i=0; i<objs.size(); i++) {
       objs.get(i).display();
     }
-    stroke(230);
     noFill();
+    stroke(220);
     rect(pxCoords[0]-1, pyCoords[0]-1, pxCoords[1]-pxCoords[0]+2, pyCoords[1]-pyCoords[0]+2);
     displayButtons();
   }
@@ -376,26 +462,23 @@ class GroupObj extends DrawingObj {
   }
   
   void ungroup() {
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).beginEdit();
-    }
     drawingList.addAll(this.objs);
     objSelection.insert(this.objs);
     delete();
   }
   
   String toString() {
-    String toPrint = "GROUP";
+    String toPrint = "GROUP\n";
     for (int i=0; i<objs.size(); i++) {
-      toPrint += "\n"+objs.get(i).toString();
+      toPrint += objs.get(i).toString()+"\n";
     }
-    toPrint += "\nENDGROUP";
+    toPrint += "ENDGROUP";
     return toPrint;
   }
 }
 
 class Selection extends GroupObj {
-  ArrayList<DrawingObj> clipboard = new ArrayList<DrawingObj>();
+  String clipboard = "";
   
   Selection() {
     super();
@@ -410,18 +493,16 @@ class Selection extends GroupObj {
     }
   }
   
-  void press() {
-    super.press();
-    for (int i=0; i<objs.size(); i++) {
-        objs.get(i).press();
-    }
+  void updatePos() {
+    super.updatePos();
+    x1Text.setVal(xCoords[0]);
+    y1Text.setVal(yCoords[0]);
+    x2Text.setVal(xCoords[1]);
+    y2Text.setVal(yCoords[1]);
   }
   
   void release() {
     super.release();
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).release();
-    }
     getBounds();
   }
   
@@ -430,7 +511,6 @@ class Selection extends GroupObj {
     for (int i=0; i<objs.size(); i++) {
       objs.get(i).select();
     }
-    beginEdit();
   }
   
   void deselect() {
@@ -439,7 +519,6 @@ class Selection extends GroupObj {
       objs.get(i).deselect();
     }
     objs.clear();
-    endEdit();
   }
   
   void insert(DrawingObj iObj) {
@@ -461,12 +540,8 @@ class Selection extends GroupObj {
   
   void group() {
     if (selected) {
-      for (int i=0; i<objs.size(); i++) {
-        objs.get(i).endEdit();
-      }
       GroupObj newGroup = new GroupObj((ArrayList<DrawingObj>)objs.clone());
       drawingList.add(newGroup);
-      newGroup.beginEdit();
       delete();
       insert(newGroup);
     }
@@ -485,24 +560,34 @@ class Selection extends GroupObj {
   }
   
   void copy() {
-    clipboard.clear();
-    for (int i=0; i<objs.size(); i++) {
-      //clipboard.add(objs.get(i).duplicate());
-    }
+    clipboard = toString();
   }
   
   void paste() {
-    drawingList.addAll(clipboard);
-    objs = clipboard;
+    if (clipboard.length() > 0) {
+      String[] strings = clipboard.split("\n");
+      ArrayList<DrawingObj> pasted = parseStrings(strings);
+      deselect();
+      insert(pasted);
+      drawingList.addAll(pasted);
+    }
   }
   
   void display() {
     update();
     if (selected) {
-      stroke(0, 255, 0);
       noFill();
+      stroke(0, 255, 0);
       rect(pxCoords[0]-1, pyCoords[0]-1, pxCoords[1]-pxCoords[0]+2, pyCoords[1]-pyCoords[0]+2);
       displayButtons();
     }
+  }
+  
+  String toString() {
+    String toPrint = "";
+    for (int i=0; i<objs.size(); i++) {
+      toPrint += objs.get(i).toString()+"\n";
+    }
+    return toPrint;
   }
 }

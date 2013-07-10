@@ -59,14 +59,12 @@ class ShutterCommand implements Command {
 }
 
 class MoveCommand extends TextCommand {
-  int startX;
-  int startY;
-  int destX;
-  int destY;
+  float destX;
+  float destY;
   boolean shutter;
   
-  MoveCommand(int ix, int iy, boolean ishut) {
-    super("G", ix+","+iy);
+  MoveCommand(float ix, float iy, boolean ishut) {
+    super("G", int(ix*10)+","+int(iy*10));
     destX = ix;
     destY = iy;
     shutter = ishut;

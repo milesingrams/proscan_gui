@@ -95,6 +95,30 @@ class UngroupButton extends TextButton {
   }
 }
 
+class CopyButton extends TextButton {
+  CopyButton (int ix, int iy, int iw, int ih) {
+    super(ix, iy, iw, ih, "COPY");
+  }
+  
+  void press() {
+    if (over()) {
+      objSelection.copy();
+    }
+  }
+}
+
+class PasteButton extends TextButton {
+  PasteButton (int ix, int iy, int iw, int ih) {
+    super(ix, iy, iw, ih, "PASTE");
+  }
+  
+  void press() {
+    if (over()) {
+      objSelection.paste();
+    }
+  }
+}
+
 class CreateButton extends TextButton {
   CreateButton (int ix, int iy, int iw, int ih) {
     super(ix, iy, iw, ih, "CREATE");
@@ -103,13 +127,23 @@ class CreateButton extends TextButton {
   void press() {
     if (over()) {
       if (currentTool.equals("POINT")) {
-        drawingList.add(new PointObj(timeSlider.val, x1Text.intVal(), y1Text.intVal()));
+        drawingList.add(new PointObj(timeText.val, x1Text.val, y1Text.val));
       } else
       if (currentTool.equals("LINE")) {
-        drawingList.add(new LineObj(speedSlider.val, x1Text.intVal(), y1Text.intVal(), x2Text.intVal(), y2Text.intVal()));
+        drawingList.add(new LineObj(speedText.val, x1Text.val, y1Text.val, x2Text.val, y2Text.val));
+      } else
+      if (currentTool.equals("CURVE")) {
+        float cx1 = x1Text.val+(x2Text.val-x1Text.val)*0.33;
+        float cy1 = y1Text.val+(y2Text.val-y1Text.val)*0.33;
+        float cx2 = x1Text.val+(x2Text.val-x1Text.val)*0.66;
+        float cy2 = y1Text.val+(y2Text.val-y1Text.val)*0.66;
+        drawingList.add(new CurveObj(timeText.val, x1Text.val, y1Text.val, x2Text.val, y2Text.val, cx1, cy1, cx2, cy2));
       } else
       if (currentTool.equals("RECT")) {
-        drawingList.add(new RectObj(speedSlider.val, x1Text.intVal(), y1Text.intVal(), x2Text.intVal(), y2Text.intVal()));
+        drawingList.add(new RectObj(speedText.val, x1Text.val, y1Text.val, x2Text.val, y2Text.val));
+      }
+      if (currentTool.equals("ELLIPSE")) {
+        drawingList.add(new EllipseObj(speedText.val, x1Text.val, y1Text.val, x2Text.val, y2Text.val));
       }
     }
   }
@@ -122,7 +156,15 @@ class SetButton extends TextButton {
   
   void press() {
     if (over()) {
-      stage.setPos(lowXText.intVal(), lowYText.intVal(), rangeXText.intVal());
+      if (currentTool.equals("ZOOMIN")) {
+        stage.setPos(lowXText.val, lowYText.val, rangeXText.val);
+      } else
+      if (currentTool.equals("ZOOMOUT")) {
+        stage.setPos(lowXText.val, lowYText.val, rangeXText.val);
+      } else
+      if (currentTool.equals("EDIT")) {
+        objSelection.setPos(new float[]{x1Text.val, x2Text.val}, new float[]{y1Text.val, y2Text.val});
+      }
     }
   }
 }
@@ -148,14 +190,12 @@ class Tool extends Clickable {
     pressed = true;
     currentTool = name;
     toolbar.setTools(tools);
-    for (int i=0; i<drawingList.size(); i++) {
-      drawingList.get(i).endEdit();
-    }
+    objSelection.deselect();
   }
   
   void press() {
     if (over()) {
-     choose();
+      choose();
     }
   }
 }
@@ -229,9 +269,11 @@ class ZoomInButton extends Tool {
   
   void press() {
     super.press();
-    lowXText.setVal(stage.lowX/10.0);
-    lowYText.setVal(stage.lowY/10.0);
-    rangeXText.setVal(stage.rangeX/10.0);
+    if (over()) {
+      lowXText.setVal(stage.lowX);
+      lowYText.setVal(stage.lowY);
+      rangeXText.setVal(stage.rangeX);
+    }
   }
   
   void display () {
@@ -251,9 +293,11 @@ class ZoomOutButton extends Tool {
   
   void press() {
     super.press();
-    lowXText.setVal(stage.lowX/10.0);
-    lowYText.setVal(stage.lowY/10.0);
-    rangeXText.setVal(stage.rangeX/10.0);
+    if (over()) {
+      lowXText.setVal(stage.lowX);
+      lowYText.setVal(stage.lowY);
+      rangeXText.setVal(stage.rangeX);
+    }
   }
   
   void display () {
@@ -268,15 +312,6 @@ class EditButton extends Tool {
   
   EditButton (int ix, int iy, Toolbar iToolbar) {
     super(ix, iy, "EDIT", iToolbar);
-  }
-  
-  void press() {
-    super.press();
-    if (over()) {
-      for (int i=0; i<drawingList.size(); i++) {
-        drawingList.get(i).beginEdit();
-      }
-    }
   }
   
   void display () {
