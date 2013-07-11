@@ -350,3 +350,4 @@ class TextButton extends Clickable {
     text(text, x+10, y+h/2+fontSize/2);
   }
 }
+

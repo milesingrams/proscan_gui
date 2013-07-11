@@ -11,9 +11,8 @@ boolean shutter;
 Serial serialConn;  // The serial serialConn object
 boolean firstContact = false;
 boolean runningCommand = false;
-boolean checkingPos = false;
 final int precision = 2;
-final int baseMoveSpeed = 60;
+final int baseMoveSpeed = 5000;
 float scopeX = 0;
 float scopeY = 0;
 ArrayList<Command> commandList;
@@ -31,7 +30,7 @@ ArrayList<DrawingObj> drawingList;
 // Interface
 float lastX;
 float lastY;
-final float maxSpeed = 1000;
+final float maxSpeed = 10000;
 final float maxTime = 10;
 int fontSize = 12;
 PFont font = createFont("Ariel", 12);
@@ -51,6 +50,7 @@ LineButton lineButton;
 CurveButton curveButton;
 RectButton rectButton;
 EllipseButton ellipseButton;
+FillButton fillButton;
 ZoomInButton zoomInButton;
 ZoomOutButton zoomOutButton;
 EditButton editButton;
@@ -90,7 +90,7 @@ JFileChooser fileChooser;
 // initialization
 void setup() {
   // Stage init;
-  stage = new Stage(leftMargin, topMargin, 1000, 800, 100);
+  stage = new Stage(leftMargin, topMargin, 1000, 800, 1000);
   size(leftMargin+stage.w+rightMargin, topMargin+stage.h+bottomMargin);
   textFont(font);
   
@@ -170,7 +170,16 @@ void setup() {
     ellipseButton.tools.add(x2Text);
     ellipseButton.tools.add(y2Text);
     ellipseButton.tools.add(createButton);
-    
+  
+  fillButton = new FillButton(0,0, chooserToolbar);
+    fillButton.tools.add(speedSlider);
+    fillButton.tools.add(speedText);
+    fillButton.tools.add(x1Text);
+    fillButton.tools.add(y1Text);
+    fillButton.tools.add(x2Text);
+    fillButton.tools.add(y2Text);
+    fillButton.tools.add(createButton);
+  
   zoomInButton = new ZoomInButton(0, 0, chooserToolbar);
     zoomInButton.tools.add(lowXText);
     zoomInButton.tools.add(lowYText);
@@ -202,6 +211,7 @@ void setup() {
   drawingTools.add(curveButton);
   drawingTools.add(rectButton);
   drawingTools.add(ellipseButton);
+  drawingTools.add(fillButton);
   drawingTools.add(zoomInButton);
   drawingTools.add(zoomOutButton);
   drawingTools.add(editButton);
@@ -223,10 +233,10 @@ void setup() {
   
   // Make Selection and Filechooser
   objSelection = new Selection();
-  fileChooser = new JFileChooser();
-  fileChooser.setCurrentDirectory(new File(sketchPath("")+"Saves/"));
-  pointButton.choose();
   
+  fileChooser = new JFileChooser();
+  //fileChooser.setCurrentDirectory(new File(sketchPath("")+"Saves/"));
+  pointButton.choose();
   /*
   // connect to solenoid
   tcpServer = new Server(this, tcpPort);
@@ -241,10 +251,8 @@ void setup() {
   }
   
   addCommand(new ShutterCommand(false, 0));
-  addCommand(new TextCommand("K", ""));
-  addCommand(new TextCommand("PS", ""));
+  addCommand(new PosCommand());
   addCommand(new TextCommand("BLSH", "0"));
-  
   */
 }
 
@@ -410,43 +418,47 @@ void mousePressed() {
       }
     } 
   }
+  if (mouseButton == RIGHT) {
+    fileChooser.showSaveDialog(this);
+    float dx = stage.globalToLocalX(mouseX);
+    float dy = stage.globalToLocalY(mouseY);
+    addCommand(new SpeedCommand(baseMoveSpeed));
+    addCommand(new MoveCommand(dx, dy, false));
+  }
 }
 
 // performed when mouse is released
 void mouseReleased() {
-  if (mouseButton == LEFT) {
-    timeSlider.release();
-    speedSlider.release();
-    
-    // END OBJECT DRAW
-    if (stage.mouseOver()) {
-      if (currentDraw != null) {
-        drawingList.add(currentDraw);
-        currentDraw = null;
+  timeSlider.release();
+  speedSlider.release();
+  // END OBJECT DRAW
+  if (stage.mouseOver()) {
+    if (currentDraw != null) {
+      drawingList.add(currentDraw);
+      currentDraw = null;
+    }
+    if (currentTool.equals("EDIT")) {
+      for (int i=0; i<drawingList.size(); i++) {
+        drawingList.get(i).release();
       }
-      if (currentTool.equals("EDIT")) {
-        for (int i=0; i<drawingList.size(); i++) {
-          drawingList.get(i).release();
+      objSelection.release();
+      if (selecting) {
+        if (!(keyPressed && keyCode == SHIFT)) {
+          objSelection.deselect();
         }
-        objSelection.release();
-        if (selecting) {
-          if (!(keyPressed && keyCode == SHIFT)) {
-            objSelection.deselect();
-          }
-          ArrayList<DrawingObj> tempObjs = new ArrayList<DrawingObj>();
-          for (int i=0; i<drawingList.size(); i++) {
-            DrawingObj currObj = drawingList.get(i);
-            if (currObj.inBounds(lastX, lastY, stage.globalToLocalX(mouseX), stage.globalToLocalY(mouseY))) {
-              if (currObj.selected == false) {
-                tempObjs.add(currObj);
-              }
+        ArrayList<DrawingObj> tempObjs = new ArrayList<DrawingObj>();
+        for (int i=0; i<drawingList.size(); i++) {
+          DrawingObj currObj = drawingList.get(i);
+          if (currObj.inBounds(lastX, lastY, stage.globalToLocalX(mouseX), stage.globalToLocalY(mouseY))) {
+            if (currObj.selected == false) {
+              tempObjs.add(currObj);
             }
           }
-          if (tempObjs.size() > 0) {
-            objSelection.insert(tempObjs);
-          }
-          selecting = false;
         }
+        if (tempObjs.size() > 0) {
+          objSelection.insert(tempObjs);
+        }
+        selecting = false;
       }
     }
   }
@@ -462,58 +474,11 @@ void serialEvent(Serial srialConn) {
       firstContact = true;
     }
   } else {
-    
     if (input != null) {
       println(input);
-      String[] vals = splitTokens(input, ", ");
       if (commandList.size() > 0) {
         Command currCommand = commandList.get(0);
-        if (currCommand instanceof MoveCommand) {
-          MoveCommand currMoveCommand = (MoveCommand)currCommand;
-          if (checkingPos == false) {
-            checkingPos = true;
-            serialConn.write("PS\r");
-          } else {
-            float newScopeX = float(parseInt(vals[0].trim()))/10;
-            float newScopeY = float(parseInt(vals[1].trim()))/10;
-            
-            float distX = abs(currMoveCommand.destX-newScopeX);
-            float distY = abs(currMoveCommand.destY-newScopeY);
-            float dist = sqrt(pow(distX, 2)+pow(distY, 2));
-            
-            if (currMoveCommand.shutter == true && shutter == false) {
-              setShutter(true);
-            }
-            
-            if (dist <= precision) {
-              checkingPos = false;
-              runningCommand = false;
-              if (shutter == true) {
-                setShutter(false);
-              }
-              commandList.remove(0);
-              runNext();
-            } else {
-              serialConn.write("PS\r");
-            }
-            scopeX = newScopeX;
-            scopeY = newScopeY;
-          }
-        } else 
-        if (currCommand instanceof TextCommand) {
-          TextCommand currTextCommand = (TextCommand)currCommand;
-          if (currTextCommand.command.equals("PS")) {
-            scopeX = float(parseInt(vals[0].trim()))/10;
-            scopeY = float(parseInt(vals[1].trim()))/10;
-          }
-          runningCommand = false;
-          commandList.remove(0);
-          runNext();
-        } else {
-          runningCommand = false;
-          commandList.remove(0);
-          runNext();
-        }
+        currCommand.recieve(input);
       }    
     }
   }  
@@ -531,23 +496,14 @@ void addCommand(Command command) {
 void runNext() {
   if (commandList.size() >= 1) {
     Command currCommand = commandList.get(0);
-    currCommand.run();
+    currCommand.send();
     println(currCommand);
   }
 }
 
 // begins command sequence to send to proscan
-void runSequence() {
-  for (int i=0; i<drawingList.size(); i++) {
-    drawingList.get(i).makeCommands();
-  }
-}
-
-void setShutter(boolean mode) {
-  shutter = mode;
-  if (mode) {
-    tcpServer.write("1");
-  } else {
-    tcpServer.write("0");
+void runSequence(ArrayList<DrawingObj> sequence) {
+  for (int i=0; i<sequence.size(); i++) {
+    sequence.get(i).makeCommands();
   }
 }

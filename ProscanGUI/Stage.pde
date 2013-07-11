@@ -104,7 +104,7 @@ class Stage {
     strokeWeight(2);
     fill(0);
     line(x+30, y+h-30, x+w/10, y+h-30);
-    text(str(rangeX)+" um", x+30, y+h-28+fontSize);
+    text(str(rangeX/10)+" um", x+30, y+h-28+fontSize);
     strokeWeight(1);
     
     // Cursor
@@ -115,3 +115,4 @@ class Stage {
     }
   }
 }
+

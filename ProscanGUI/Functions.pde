@@ -1,6 +1,16 @@
+void setShutter(boolean mode) {
+  shutter = mode;
+  if (mode) {
+    tcpServer.write("1");
+  } else {
+    tcpServer.write("0");
+  }
+}
+
 void saveData() {
+  fileChooser.showSaveDialog(this);
   int returnVal = fileChooser.showSaveDialog(this);
-  if (returnVal == JFileChooser.APPROVE_OPTION) { 
+  if (returnVal == JFileChooser.APPROVE_OPTION) {
     File file = fileChooser.getSelectedFile();
     String[] strings = new String[drawingList.size()];
     for (int i=0; i<drawingList.size(); i++) {
@@ -100,14 +110,4 @@ boolean inRegion(float x, float y, float bx1, float by1, float bx2, float by2) {
 // Gives an intermediate between red and blue
 color redblueColor (float x, float maxX) {
   return lerpColor(color(0, 0, 255), color(255, 0, 0), x/maxX);
-}
-
-// Pauses running
-void hold (long time){
-  long t0,t1;
-  t0 = System.currentTimeMillis();
-  do {
-    t1=System.currentTimeMillis();
-  }
-  while (t1-t0 < time);
 }

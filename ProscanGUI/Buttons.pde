@@ -29,7 +29,7 @@ class PosButton extends TextButton {
   
   void press() {
     if (over()) {
-      addCommand(new TextCommand("PS", ""));
+      addCommand(new PosCommand());
     }
   }
 }
@@ -54,6 +54,7 @@ class StopButton extends TextButton {
   void press() {
     if (over()) {
       commandList.clear();
+      setShutter(false);
       addCommand(new TextCommand("K", ""));
     }
   }
@@ -66,7 +67,11 @@ class RunButton extends TextButton {
   
   void press() {
     if (over()) {
-      runSequence();
+      if (objSelection.selected) {
+        runSequence(objSelection.objs);
+      } else {
+        runSequence(drawingList);
+      }
     }
   }
 }
@@ -261,6 +266,23 @@ class EllipseButton extends Tool {
   }
 }
 
+class FillButton extends Tool {
+  
+  FillButton (int ix, int iy, Toolbar iToolbar) {
+    super(ix, iy, "FILL", iToolbar);
+  }
+  
+  void display () {
+    super.display();
+    line(x+4, y+4, x+20, y+4);
+    line(x+4, y+7, x+20, y+7);
+    line(x+4, y+10, x+20, y+10);
+    line(x+4, y+13, x+20, y+13);
+    line(x+4, y+16, x+20, y+16);
+    line(x+4, y+19, x+20, y+19);
+  }
+}
+
 class ZoomInButton extends Tool {
   
   ZoomInButton (int ix, int iy, Toolbar iToolbar) {
@@ -328,3 +350,4 @@ class EditButton extends Tool {
     endShape(CLOSE);
   }
 }
+

@@ -185,7 +185,9 @@ class PointObj extends DrawingObj {
   }
   
   void makeCommands() {
-
+    addCommand(new SpeedCommand(baseMoveSpeed));
+    addCommand(new MoveCommand(xCoords[0], yCoords[0], false));
+    addCommand(new ShutterCommand(true, time));
   }
   
   String toString() {
@@ -210,9 +212,9 @@ class LineObj extends DrawingObj {
   }
   
   void makeCommands() {
-    addCommand(new TextCommand("SMS", str(baseMoveSpeed)));
+    addCommand(new SpeedCommand(baseMoveSpeed));
     addCommand(new MoveCommand(xCoords[0], yCoords[0], false));
-    addCommand(new TextCommand("SMS", str(speed)));
+    addCommand(new SpeedCommand(speed));
     addCommand(new MoveCommand(xCoords[1], yCoords[1], true));
   }
   
@@ -223,7 +225,7 @@ class LineObj extends DrawingObj {
 
 class CurveObj extends DrawingObj {
   float speed; // single bar width
-  float detail = 10;
+  float detail = 12;
   
   CurveObj(float s, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2, ix1, ix2}, new float[]{iy1, iy2, iy1, iy2});
@@ -254,7 +256,14 @@ class CurveObj extends DrawingObj {
   }
   
   void makeCommands() {
-    
+    addCommand(new SpeedCommand(baseMoveSpeed));
+    addCommand(new MoveCommand(xCoords[0], yCoords[0], false));
+    addCommand(new SpeedCommand(speed));
+    for (int i=1; i<=detail; i++) {
+      float dx = bezierPoint(xCoords[0], xCoords[2], xCoords[3], xCoords[1], i/detail);
+      float dy = bezierPoint(yCoords[0], yCoords[2], yCoords[3], yCoords[1], i/detail); 
+      addCommand(new MoveCommand(dx, dy, true));
+    }
   }
   
   String toString() {
@@ -279,6 +288,13 @@ class RectObj extends DrawingObj {
   }
   
   void makeCommands() {
+    addCommand(new SpeedCommand(baseMoveSpeed));
+    addCommand(new MoveCommand(xCoords[0], yCoords[0], false));
+    addCommand(new SpeedCommand(speed));
+    addCommand(new MoveCommand(xCoords[1], yCoords[0], true));
+    addCommand(new MoveCommand(xCoords[1], yCoords[1], true));
+    addCommand(new MoveCommand(xCoords[0], yCoords[1], true));
+    addCommand(new MoveCommand(xCoords[0], yCoords[0], true));
   }
   
   String toString() {
@@ -334,6 +350,37 @@ class EllipseObj extends DrawingObj {
   }
   
   void makeCommands() {
+    float lx = xCoords[0];
+    float hx = xCoords[1];
+    float ly = yCoords[0];
+    float hy = yCoords[1];
+    float mx = (lx+hx)/2;
+    float my = (ly+hy)/2;
+    float xDist = (hx-lx)/2*0.552;
+    float yDist = (hy-ly)/2*0.552;
+    addCommand(new SpeedCommand(baseMoveSpeed));
+    addCommand(new MoveCommand(lx, my, false));
+    addCommand(new SpeedCommand(speed));
+    for (int i=1; i<=detail; i++) {
+      float dx = bezierPoint(lx, lx, mx-xDist, mx, i/detail);
+      float dy = bezierPoint(my, my-yDist, ly, ly, i/detail);
+      addCommand(new MoveCommand(dx, dy, true));
+    }
+    for (int i=0; i<=detail; i++) {
+      float dx = bezierPoint(mx, mx+xDist, hx, hx, i/detail);
+      float dy = bezierPoint(ly, ly, my-yDist, my, i/detail);
+      addCommand(new MoveCommand(dx, dy, true));
+    }
+    for (int i=0; i<=detail; i++) {
+      float dx = bezierPoint(hx, hx, mx+xDist, mx, i/detail);
+      float dy = bezierPoint(my, my+yDist, hy, hy, i/detail);
+      addCommand(new MoveCommand(dx, dy, true));
+    }
+    for (int i=0; i<=detail; i++) {
+      float dx = bezierPoint(mx, mx-xDist, lx, lx, i/detail);
+      float dy = bezierPoint(hy, hy, my+yDist, my, i/detail);
+      addCommand(new MoveCommand(dx, dy, true));
+    }
   }
   
   String toString() {
@@ -591,3 +638,4 @@ class Selection extends GroupObj {
     return toPrint;
   }
 }
+
