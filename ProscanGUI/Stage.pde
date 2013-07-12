@@ -3,7 +3,6 @@ class Stage {
   int w, h;
   float rangeX, rangeY;
   float lowX, lowY;
-  float gridSize = 1;
   
   Stage (int ix, int iy, int iw, int ih, float irx) {
     x = ix;
@@ -24,16 +23,20 @@ class Stage {
     return int(map(iy, lowY, lowY+rangeY, y, y+h));
   }
   
+  int localToGlobalW(float iw) {
+    return int(iw/rangeX*w);
+  }
+  
+  int localToGlobalH(float ih) {
+    return int(ih/rangeY*h);
+  }
+  
   float globalToLocalX(int ix) {
     return map(ix, x, x+w, lowX, lowX+rangeX);
   }
   
   float globalToLocalY(int iy) {
     return map(iy, y, y+h, lowY, lowY+rangeY);
-  }
-  
-  float toGrid(float ix) {
-    return round(ix/gridSize)*gridSize;
   }
   
   float localMouseX() {
@@ -53,16 +56,16 @@ class Stage {
   }
   
   void setZoom(float ix, float iy, float zoom) {
-    setPos(ix-rangeX*zoom/2, iy-rangeY*zoom/2, rangeX*zoom);
+    setPos(ix, iy, rangeX*zoom);
   }
   
-  void setPos(float ilx, float ily, float irx) {
-    lowX = ilx;
-    lowY = ily;
+  void setPos(float imx, float imy, float irx) {
     if (irx > 0) {
       rangeX = irx;
       rangeY = (float(h)/w)*rangeX;
     }
+    lowX = imx-rangeX/2;
+    lowY = imy-rangeY/2;
     updatePos();
   }
   
@@ -71,9 +74,7 @@ class Stage {
       drawingList.get(i).updatePos();
     }
     objSelection.updatePos();
-    lowXText.setVal(lowX);
-    lowYText.setVal(lowY);
-    rangeXText.setVal(rangeX);
+  
   }
   
   void display() {
@@ -92,26 +93,6 @@ class Stage {
         int lineY = localToGlobalY(i);
         line(x, lineY, x+w, lineY);
       }
-    }
-    
-    // Origin Dot
-    stroke(0);
-    fill(0);
-    ellipse(localToGlobalX(0), localToGlobalY(0), 5, 5);
-    
-    // Range Bar
-    stroke(0);
-    strokeWeight(2);
-    fill(0);
-    line(x+30, y+h-30, x+w/10, y+h-30);
-    text(str(rangeX/10)+" um", x+30, y+h-28+fontSize);
-    strokeWeight(1);
-    
-    // Cursor
-    if (mouseOver()) {
-      fill(0);
-      text("x:"+String.format("%.1f", localMouseX()), mouseX + 15, mouseY - 2);
-      text("y:"+String.format("%.1f", localMouseY()), mouseX + 15, mouseY + fontSize);
     }
   }
 }

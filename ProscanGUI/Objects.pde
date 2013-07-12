@@ -2,8 +2,6 @@ class DrawingObj {
   int numCoords;
   float[] xCoords;
   float[] yCoords;
-  int[] pxCoords;
-  int[] pyCoords;
   float midX;
   float midY;
   float[] relativeCoordsX;
@@ -17,8 +15,6 @@ class DrawingObj {
     numCoords = ixCoords.length;
     xCoords = ixCoords;
     yCoords = iyCoords;
-    pxCoords = new int[numCoords];
-    pyCoords = new int[numCoords];
     relativeCoordsX = new float[numCoords];
     relativeCoordsY = new float[numCoords];
     selected = false;
@@ -37,14 +33,14 @@ class DrawingObj {
   void update() {
     for (int i=0; i<numCoords; i++) {
       if (vertexButtons[i].pressed) {
-        xCoords[i] = stage.toGrid(stage.localMouseX());
-        yCoords[i] = stage.toGrid(stage.localMouseY());
+        xCoords[i] = toGrid(mainStage.localMouseX());
+        yCoords[i] = toGrid(mainStage.localMouseY());
         updatePos();
       }
     }
     if (dragButton.pressed) {
-      midX = stage.toGrid(stage.localMouseX());
-      midY = stage.toGrid(stage.localMouseY());
+      midX = toGrid(mainStage.localMouseX());
+      midY = toGrid(mainStage.localMouseY());
       for (int i=0; i<numCoords; i++) {
         xCoords[i] = midX + relativeCoordsX[i];
         yCoords[i] = midY + relativeCoordsY[i];
@@ -55,15 +51,13 @@ class DrawingObj {
   
   void updatePos() {
     for (int i=0; i<numCoords; i++) {
-      pxCoords[i] = stage.localToGlobalX(xCoords[i]);
-      pyCoords[i] = stage.localToGlobalY(yCoords[i]);
-      vertexButtons[i].x = pxCoords[i]-buttonSize/2;
-      vertexButtons[i].y = pyCoords[i]-buttonSize/2;
+      vertexButtons[i].x = mainStage.localToGlobalX(xCoords[i])-buttonSize/2;
+      vertexButtons[i].y = mainStage.localToGlobalY(yCoords[i])-buttonSize/2;
     }
     midX = midX();
     midY = midY();
-    dragButton.x = stage.localToGlobalX(midX())-buttonSize/2;
-    dragButton.y = stage.localToGlobalY(midY())-buttonSize/2;
+    dragButton.x = mainStage.localToGlobalX(midX())-buttonSize/2;
+    dragButton.y = mainStage.localToGlobalY(midY())-buttonSize/2;
   }
   
   void setRelativeCoords() {
@@ -164,24 +158,31 @@ class DrawingObj {
     dragButton.display();
   }
   
-  void display(){}
+  void display(Stage iStage, boolean simple){}
   void makeCommands(){}
 }
 
 class PointObj extends DrawingObj {
-  float time; // single bar width
+  float time;
  
   PointObj(float it, float ix, float iy) {
     super(new float[]{ix}, new float[]{iy});
     time = it;
   }
  
-  void display() {
+  void display(Stage iStage, boolean simple) {
     update();
-    stroke(0);
+    int px = iStage.localToGlobalX(xCoords[0]);
+    int py = iStage.localToGlobalY(yCoords[0]);
     fill(redblueColor(time, maxTime));
-    ellipse(pxCoords[0], pyCoords[0], 10, 10);
-    displayButtons();
+    if (simple) {
+      noStroke();
+      ellipse(px, py, 2, 2);
+    } else {
+      stroke(0);
+      ellipse(px, py, 10, 10);
+      displayButtons();
+    }
   }
   
   void makeCommands() {
@@ -196,19 +197,25 @@ class PointObj extends DrawingObj {
 }
 
 class LineObj extends DrawingObj {
-  float speed; // single bar width
+  float speed;
  
-  LineObj(float s, float ix1, float iy1, float ix2, float iy2) {
+  LineObj(float is, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
-    speed = s;
+    speed = is;
   }
  
-  void display() {
+  void display(Stage iStage, boolean simple) {
     update();
+    int px1 = iStage.localToGlobalX(xCoords[0]);
+    int py1 = iStage.localToGlobalY(yCoords[0]);
+    int px2 = iStage.localToGlobalX(xCoords[1]);
+    int py2 = iStage.localToGlobalY(yCoords[1]);
     noFill();
     stroke(redblueColor(speed, maxSpeed));
-    line(pxCoords[0], pyCoords[0], pxCoords[1], pyCoords[1]);
-    displayButtons();
+    line(px1, py1, px2, py2);
+    if (!simple) {
+      displayButtons();
+    }
   }
   
   void makeCommands() {
@@ -224,35 +231,51 @@ class LineObj extends DrawingObj {
 }
 
 class CurveObj extends DrawingObj {
-  float speed; // single bar width
+  float speed;
   float detail = 12;
   
-  CurveObj(float s, float ix1, float iy1, float ix2, float iy2) {
-    super(new float[]{ix1, ix2, ix1, ix2}, new float[]{iy1, iy2, iy1, iy2});
-    speed = s;
-    
+  CurveObj(int iDet, float is, float ix1, float iy1, float ix2, float iy2) {
+    super(new float[]{ix1, ix2, ix1+(ix2-ix1)*0.33, ix1+(ix2-ix1)*0.66}, new float[]{iy1, iy2, iy1+(iy2-iy1)*0.33, iy1+(iy2-iy1)*0.66});
+    speed = is;
+    detail = iDet;
   }
   
-  CurveObj(float s, float ix1, float iy1, float ix2, float iy2, float cx1, float cy1, float cx2, float cy2) {
+  CurveObj(int iDet, float is, float ix1, float iy1, float ix2, float iy2, float cx1, float cy1, float cx2, float cy2) {
     super(new float[]{ix1, ix2, cx1, cx2}, new float[]{iy1, iy2, cy1, cy2});
-    speed = s;
+    speed = is;
+    detail = iDet;
   }
  
-  void display() {
+  void display(Stage iStage, boolean simple) {
     update();
-    noFill();
-    stroke(220);
-    line(pxCoords[0], pyCoords[0], pxCoords[2], pyCoords[2]);
-    line(pxCoords[1], pyCoords[1], pxCoords[3], pyCoords[3]);
-    stroke(redblueColor(speed, maxSpeed));
-    beginShape();
-    for (int i=0; i<=detail; i++) {
-      float px = bezierPoint(pxCoords[0], pxCoords[2], pxCoords[3], pxCoords[1], i/detail);
-      float py = bezierPoint(pyCoords[0], pyCoords[2], pyCoords[3], pyCoords[1], i/detail); 
-      vertex(px, py);
+    int px1 = iStage.localToGlobalX(xCoords[0]);
+    int py1 = iStage.localToGlobalY(yCoords[0]);
+    int px2 = iStage.localToGlobalX(xCoords[1]);
+    int py2 = iStage.localToGlobalY(yCoords[1]);
+    int cx1 = iStage.localToGlobalX(xCoords[2]);
+    int cy1 = iStage.localToGlobalY(yCoords[2]);
+    int cx2 = iStage.localToGlobalX(xCoords[3]);
+    int cy2 = iStage.localToGlobalY(yCoords[3]);
+    
+    if (simple) {
+      noFill();
+      stroke(redblueColor(speed, maxSpeed));
+      bezier(px1, py1, cx1, cy1, cx2, cy2, px2, py2);
+    } else {
+      noFill();
+      stroke(220);
+      line(px1, py1, cx1, cy1);
+      line(px2, py2, cx2, cy2);
+      stroke(redblueColor(speed, maxSpeed));
+      beginShape();
+      for (int i=0; i<=detail; i++) {
+        float px = bezierPoint(px1, cx1, cx2, px2, i/detail);
+        float py = bezierPoint(py1, cy1, cy2, py2, i/detail); 
+        vertex(px, py);
+      }
+      endShape();
+      displayButtons();
     }
-    endShape();
-    displayButtons();
   }
   
   void makeCommands() {
@@ -267,24 +290,30 @@ class CurveObj extends DrawingObj {
   }
   
   String toString() {
-    return "CURVE "+speed+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1]+" "+xCoords[2]+" "+yCoords[2]+" "+xCoords[3]+" "+yCoords[3];
+    return "CURVE "+speed+" "+detail+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1]+" "+xCoords[2]+" "+yCoords[2]+" "+xCoords[3]+" "+yCoords[3];
   }
 }
 
 class RectObj extends DrawingObj {
   float speed; // single bar width
  
-  RectObj(float s, float ix1, float iy1, float ix2, float iy2) {
+  RectObj(float is, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
-    speed = s;
+    speed = is;
   }
   
-  void display() {
+  void display(Stage iStage, boolean simple) {
     update();
+    int px1 = iStage.localToGlobalX(xCoords[0]);
+    int py1 = iStage.localToGlobalY(yCoords[0]);
+    int px2 = iStage.localToGlobalX(xCoords[1]);
+    int py2 = iStage.localToGlobalY(yCoords[1]);
     noFill();
     stroke(redblueColor(speed, maxSpeed));
-    rect(pxCoords[0], pyCoords[0], pxCoords[1]-pxCoords[0], pyCoords[1]-pyCoords[0]);
-    displayButtons();
+    rect(px1, py1, px2-px1, py2-py1);
+    if (!simple) {
+      displayButtons();
+    }
   }
   
   void makeCommands() {
@@ -303,88 +332,150 @@ class RectObj extends DrawingObj {
 }
 
 class EllipseObj extends DrawingObj {
-  float speed; // single bar width
+  float speed;
   float detail = 5;
  
-  EllipseObj(float s, float ix1, float iy1, float ix2, float iy2) {
+  EllipseObj(int iDet, float is, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
-    speed = s;
+    speed = is;
+    detail = iDet;
   }
   
-  void display() {
+  void display(Stage iStage, boolean simple) {
     update();
+    int px1 = iStage.localToGlobalX(xCoords[0]);
+    int py1 = iStage.localToGlobalY(yCoords[0]);
+    int px2 = iStage.localToGlobalX(xCoords[1]);
+    int py2 = iStage.localToGlobalY(yCoords[1]);
+    int mx = int(iStage.localToGlobalX(midX()));
+    int my = int(iStage.localToGlobalY(midY()));
     noFill();
     stroke(redblueColor(speed, maxSpeed));
-    int lx = pxCoords[0];
-    int hx = pxCoords[1];
-    int ly = pyCoords[0];
-    int hy = pyCoords[1];
-    int mx = int(float(lx+hx)/2);
-    int my = int(float(ly+hy)/2);
-    int xDist = int(float(hx-lx)/2*0.552);
-    int yDist = int(float(hy-ly)/2*0.552);
-
-    beginShape();
-    for (int i=0; i<=detail; i++) {
-      float px = bezierPoint(lx, lx, mx-xDist, mx, i/detail);
-      float py = bezierPoint(my, my-yDist, ly, ly, i/detail);
-      vertex(px, py);
+    if (simple) {
+      ellipse(mx, my, px2-px1, py2-py1);
+    } else {
+      int xDist = int(float(px2-px1)/2*0.552);
+      int yDist = int(float(py2-py1)/2*0.552);
+      
+      beginShape();
+      for (int i=0; i<=detail; i++) {
+        float px = bezierPoint(px1, px1, mx-xDist, mx, i/detail);
+        float py = bezierPoint(my, my-yDist, py1, py1, i/detail);
+        vertex(px, py);
+      }
+      for (int i=0; i<=detail; i++) {
+        float px = bezierPoint(mx, mx+xDist, px2, px2, i/detail);
+        float py = bezierPoint(py1, py1, my-yDist, my, i/detail);
+        vertex(px, py);
+      }
+      for (int i=0; i<=detail; i++) {
+        float px = bezierPoint(px2, px2, mx+xDist, mx, i/detail);
+        float py = bezierPoint(my, my+yDist, py2, py2, i/detail);
+        vertex(px, py);
+      }
+      for (int i=0; i<=detail; i++) {
+        float px = bezierPoint(mx, mx-xDist, px1, px1, i/detail);
+        float py = bezierPoint(py2, py2, my+yDist, my, i/detail);
+        vertex(px, py);
+      }
+      endShape();
+      displayButtons();
     }
-    for (int i=0; i<=detail; i++) {
-      float px = bezierPoint(mx, mx+xDist, hx, hx, i/detail);
-      float py = bezierPoint(ly, ly, my-yDist, my, i/detail);
-      vertex(px, py);
-    }
-    for (int i=0; i<=detail; i++) {
-      float px = bezierPoint(hx, hx, mx+xDist, mx, i/detail);
-      float py = bezierPoint(my, my+yDist, hy, hy, i/detail);
-      vertex(px, py);
-    }
-    for (int i=0; i<=detail; i++) {
-      float px = bezierPoint(mx, mx-xDist, lx, lx, i/detail);
-      float py = bezierPoint(hy, hy, my+yDist, my, i/detail);
-      vertex(px, py);
-    }
-    endShape();
-    displayButtons();
   }
   
   void makeCommands() {
-    float lx = xCoords[0];
-    float hx = xCoords[1];
-    float ly = yCoords[0];
-    float hy = yCoords[1];
-    float mx = (lx+hx)/2;
-    float my = (ly+hy)/2;
-    float xDist = (hx-lx)/2*0.552;
-    float yDist = (hy-ly)/2*0.552;
+    float px1 = xCoords[0];
+    float py1 = yCoords[0];
+    float px2 = xCoords[1];
+    float py2 = yCoords[1];
+    float mx = midX();
+    float my = midY();
+    float xDist = (px2-px1)/2*0.552;
+    float yDist = (py2-py1)/2*0.552;
     addCommand(new SpeedCommand(baseMoveSpeed));
-    addCommand(new MoveCommand(lx, my, false));
+    addCommand(new MoveCommand(px1, my, false));
     addCommand(new SpeedCommand(speed));
     for (int i=1; i<=detail; i++) {
-      float dx = bezierPoint(lx, lx, mx-xDist, mx, i/detail);
-      float dy = bezierPoint(my, my-yDist, ly, ly, i/detail);
+      float dx = bezierPoint(px1, px1, mx-xDist, mx, i/detail);
+      float dy = bezierPoint(my, my-yDist, py1, py1, i/detail);
       addCommand(new MoveCommand(dx, dy, true));
     }
     for (int i=0; i<=detail; i++) {
-      float dx = bezierPoint(mx, mx+xDist, hx, hx, i/detail);
-      float dy = bezierPoint(ly, ly, my-yDist, my, i/detail);
+      float dx = bezierPoint(mx, mx+xDist, px2, px2, i/detail);
+      float dy = bezierPoint(py1, py1, my-yDist, my, i/detail);
       addCommand(new MoveCommand(dx, dy, true));
     }
     for (int i=0; i<=detail; i++) {
-      float dx = bezierPoint(hx, hx, mx+xDist, mx, i/detail);
-      float dy = bezierPoint(my, my+yDist, hy, hy, i/detail);
+      float dx = bezierPoint(px2, px2, mx+xDist, mx, i/detail);
+      float dy = bezierPoint(my, my+yDist, py2, py2, i/detail);
       addCommand(new MoveCommand(dx, dy, true));
     }
     for (int i=0; i<=detail; i++) {
-      float dx = bezierPoint(mx, mx-xDist, lx, lx, i/detail);
-      float dy = bezierPoint(hy, hy, my+yDist, my, i/detail);
+      float dx = bezierPoint(mx, mx-xDist, px1, px1, i/detail);
+      float dy = bezierPoint(py2, py2, my+yDist, my, i/detail);
       addCommand(new MoveCommand(dx, dy, true));
     }
   }
   
   String toString() {
-    return "ELLIPSE "+speed+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
+    return "ELLIPSE "+speed+" "+detail+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
+  }
+}
+
+class FillObj extends DrawingObj {
+  float speed;
+  boolean horizontal;
+  boolean vertical;
+  float spacing;
+ 
+  FillObj(float is, boolean iHor, boolean iVer, float isp, float ix1, float iy1, float ix2, float iy2) {
+    super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
+    horizontal = iHor;
+    vertical = iVer;
+    spacing = isp;
+    speed = is;
+  }
+  
+  void display(Stage iStage, boolean simple) {
+    update();
+    float lx = minX();
+    float ly = minY();
+    float hx = maxX();
+    float hy = maxY();
+    int px1 = iStage.localToGlobalX(lx);
+    int py1 = iStage.localToGlobalY(ly);
+    int px2 = iStage.localToGlobalX(hx);
+    int py2 = iStage.localToGlobalY(hy);
+    stroke(redblueColor(speed, maxSpeed));
+    if (simple) {
+      fill(redblueColor(speed, maxSpeed));
+      rect(px1-1, py1-1, px2-px1+2, py2-py1+2);
+    } else {
+      noFill();
+      if (horizontal) {
+        for (float i=ly; i<=hy; i+=spacing) {
+          int py = iStage.localToGlobalY(i);
+          line(px1, py, px2, py);
+        }
+      }
+      if (vertical) {
+        for (float i=lx; i<=hx; i+=spacing) {
+          int px = iStage.localToGlobalX(i);
+          line(px, py1, px, py2);
+        }
+      }
+      stroke(220);
+      rect(px1-1, py1-1, px2-px1+2, py2-py1+2);
+      displayButtons();
+    }
+  }
+  
+  void makeCommands() {
+
+  }
+  
+  String toString() {
+    return "FILL "+" "+speed+" "+horizontal+" "+vertical+" "+spacing+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
   }
 }
 
@@ -394,7 +485,7 @@ class GroupObj extends DrawingObj {
   ArrayList<float[]> relativeX;
   ArrayList<float[]> relativeY;
   
-  GroupObj() {
+  GroupObj(Stage iStage) {
     super(new float[]{0, 0}, new float[]{0, 0});
     objs = new ArrayList<DrawingObj>();
     init();
@@ -491,15 +582,25 @@ class GroupObj extends DrawingObj {
     }
   }
   
-  void display() {
+  void display(Stage iStage, boolean simple) {
     update();
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).display();
+    if (simple) {
+      for (int i=0; i<objs.size(); i++) {
+        objs.get(i).display(iStage, true);
+      }
+    } else {
+      for (int i=0; i<objs.size(); i++) {
+        objs.get(i).display(iStage, false);
+      }
+      int px1 = iStage.localToGlobalX(xCoords[0]);
+      int py1 = iStage.localToGlobalY(yCoords[0]);
+      int px2 = iStage.localToGlobalX(xCoords[1]);
+      int py2 = iStage.localToGlobalY(yCoords[1]);
+      noFill();
+      stroke(220);
+      rect(px1-1, py1-1, px2-px1+2, py2-py1+2);
+      displayButtons();
     }
-    noFill();
-    stroke(220);
-    rect(pxCoords[0]-1, pyCoords[0]-1, pxCoords[1]-pxCoords[0]+2, pyCoords[1]-pyCoords[0]+2);
-    displayButtons();
   }
   
   void makeCommands() {
@@ -512,6 +613,50 @@ class GroupObj extends DrawingObj {
     drawingList.addAll(this.objs);
     objSelection.insert(this.objs);
     delete();
+  }
+  
+  void setTime(float time) {
+    for (int i=0; i<objs.size(); i++) {
+      DrawingObj currObj = objs.get(i);
+      if (currObj instanceof PointObj) {
+        PointObj pointObj = (PointObj)currObj;
+        pointObj.time = time;
+      } else
+      if (currObj instanceof GroupObj) {
+        GroupObj groupObj = (GroupObj)currObj;
+        groupObj.setTime(time);
+      }
+    }
+  }
+  
+  void setSpeed(float speed) {
+    for (int i=0; i<objs.size(); i++) {
+      DrawingObj currObj = objs.get(i);
+      if (currObj instanceof LineObj) {
+        LineObj lineObj = (LineObj)currObj;
+        lineObj.speed = speed;
+      } else
+      if (currObj instanceof CurveObj) {
+        CurveObj curveObj = (CurveObj)currObj;
+        curveObj.speed = speed;
+      } else
+      if (currObj instanceof RectObj) {
+        RectObj rectObj = (RectObj)currObj;
+        rectObj.speed = speed;
+      } else
+      if (currObj instanceof EllipseObj) {
+        EllipseObj ellipseObj = (EllipseObj)currObj;
+        ellipseObj.speed = speed;
+      } else
+      if (currObj instanceof FillObj) {
+        FillObj fillObj = (FillObj)currObj;
+        fillObj.speed = speed;
+      } else
+      if (currObj instanceof GroupObj) {
+        GroupObj groupObj = (GroupObj)currObj;
+        groupObj.setSpeed(speed);
+      }
+    }
   }
   
   String toString() {
@@ -528,7 +673,7 @@ class Selection extends GroupObj {
   String clipboard = "";
   
   Selection() {
-    super();
+    super(mainStage);
     buttonSize = 8;
     dragButton.basecolor = color(0, 255, 0);
     dragButton.pressedcolor = dragButton.highlightcolor = color(0, 200, 0);
@@ -542,14 +687,14 @@ class Selection extends GroupObj {
   
   void updatePos() {
     super.updatePos();
-    x1Text.setVal(xCoords[0]);
-    y1Text.setVal(yCoords[0]);
-    x2Text.setVal(xCoords[1]);
-    y2Text.setVal(yCoords[1]);
+    editTool.setVals(xCoords[0], yCoords[0], xCoords[1]-xCoords[0], yCoords[1]-yCoords[0]);
   }
   
   void release() {
     super.release();
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).release();
+    }
     getBounds();
   }
   
@@ -620,13 +765,19 @@ class Selection extends GroupObj {
     }
   }
   
-  void display() {
+  void display(Stage iStage, boolean simple) {
     update();
     if (selected) {
+      int px1 = iStage.localToGlobalX(xCoords[0]);
+      int py1 = iStage.localToGlobalY(yCoords[0]);
+      int px2 = iStage.localToGlobalX(xCoords[1]);
+      int py2 = iStage.localToGlobalY(yCoords[1]);
       noFill();
       stroke(0, 255, 0);
-      rect(pxCoords[0]-1, pyCoords[0]-1, pxCoords[1]-pxCoords[0]+2, pyCoords[1]-pyCoords[0]+2);
-      displayButtons();
+      rect(px1-1, py1-1, px2-px1+2, py2-py1+2);
+      if (!simple) {
+        displayButtons();
+      }
     }
   }
   

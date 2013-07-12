@@ -1,3 +1,7 @@
+interface Action {
+  void run();
+}
+
 class Toolbar {
   int x, y;
   ArrayList<Interface> tools;
@@ -236,8 +240,10 @@ class TextBox extends Interface {
   int textY;
   boolean selected;
   Clickable box;
+  Action action;
+  char[] numeric = new char[]{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '-'};
   
-  TextBox(int ix, int iy, int iw, int ih, String iName, float iVal) {
+  TextBox(int ix, int iy, int iw, int ih, String iName, float iVal, Action iAction) {
     super(ix, iy, iw, ih);
     name = iName;
     int leftMargin = int(textWidth(name))+10;
@@ -245,6 +251,7 @@ class TextBox extends Interface {
     box.basecolor = color(255);
     box.pressedcolor = box.highlightcolor = color(237, 237, 255);
     val = iVal;
+    action = iAction;
     text = str(val);
     updatePos();
   }
@@ -258,21 +265,13 @@ class TextBox extends Interface {
           text = "";
         }
       } else {
-        release();
+        box.release();
+        selected = false;
+        if (text.length() > 0) {
+          val = parseFloat(text);
+        }
+        text = str(val);
       }
-    }
-  }
-  
-  void release() {
-    if (visible) {
-      box.release();
-      selected = false;
-      if (text.length() == 0) {
-        val = 0;
-      } else {
-        val = parseFloat(text);
-      }
-      text = str(val);
     }
   }
   
@@ -283,11 +282,22 @@ class TextBox extends Interface {
     }
   }
   
-  void type(char c) {
-    if (visible) {
-      if (selected) {
-        text += c;
-        val = parseFloat(text);
+  void type() {
+    if (visible && selected) {
+      if (keyCode == BACKSPACE) {
+        delete();
+      } else
+      if (keyCode == ENTER) {
+        if (action != null) {
+          action.run();
+        }
+      } else {
+        for (int i=0; i<numeric.length; i++) {
+          if (key == numeric[i]) {
+            text += key;
+            val = parseFloat(text);
+          }
+        }
       }
     }
   }
@@ -334,14 +344,23 @@ class TextBox extends Interface {
 
 class TextButton extends Clickable {
   String text;
+  Action action;
   
-  TextButton (int ix, int iy, int iw, int ih, String iText) {
+  TextButton (int ix, int iy, int iw, int ih, String iText, Action iAction) {
     super(ix, iy, iw, ih, false);
     text = iText;
+    action = iAction;
     if (w == 0) {
       w = int(textWidth(text))+20;
     }
-    
+  }
+  
+  void press () {
+    if (over()) {
+      if (action != null) {
+        action.run();
+      }
+    }
   }
   
   void display () {
