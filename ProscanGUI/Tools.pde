@@ -257,7 +257,7 @@ class CurveTool extends Tool {
   void stagePress() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
-    currentDraw = new CurveObj(int(detailText.val), speedText.val, localX, localY, localX, localY);
+    currentDraw = new CurveObj(speedText.val, int(detailText.val), localX, localY, localX, localY);
   }
   
   void stageDrag() {
@@ -307,7 +307,7 @@ class CurveTool extends Tool {
   
   class Create implements Action {
     void run() {
-      drawingList.add(new CurveObj(int(detailText.val), speedText.val, x1Text.val, y1Text.val, x2Text.val, y2Text.val));
+      drawingList.add(new CurveObj(speedText.val, int(detailText.val), x1Text.val, y1Text.val, x2Text.val, y2Text.val));
     }
   }
 }
@@ -435,7 +435,7 @@ class EllipseTool extends Tool {
   void stagePress() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
-    currentDraw = new EllipseObj(int(detailText.val), speedText.val, localX, localY, localX, localY);
+    currentDraw = new EllipseObj(speedText.val, int(detailText.val), localX, localY, localX, localY);
   }
   
   void stageDrag() {
@@ -479,7 +479,7 @@ class EllipseTool extends Tool {
     void run() {
       float x2 = xText.val+wText.val;
       float y2 = yText.val+hText.val;
-      drawingList.add(new EllipseObj(int(detailText.val), speedText.val, xText.val, yText.val, x2, y2));
+      drawingList.add(new EllipseObj(speedText.val, int(detailText.val), xText.val, yText.val, x2, y2));
     }
   }
 }
@@ -607,6 +607,92 @@ class FillTool extends Tool {
       float x2 = xText.val+wText.val;
       float y2 = yText.val+hText.val;
       drawingList.add(new FillObj(speedText.val, horizontal, vertical, spacingText.val, xText.val, yText.val, x2, y2));
+    }
+  }
+}
+
+
+public class ImageTool extends Tool {
+  
+  TextBox xText;
+  TextBox yText;
+  TextBox wText;
+  TextBox hText;
+  TextButton setButton;
+  TextButton loadBGButton;
+  TextButton deleteBGButton;
+  
+  ImageTool () {
+    super();
+    button = new ImageButton();
+    
+    xText = new TextBox(0, 0, 100, 24, "x: ", 0, new Set());
+    yText = new TextBox(0, 0, 100, 24, "y: ", 0, new Set());
+    wText = new TextBox(0, 0, 100, 24, "w: ", 0, new Set());
+    hText = new TextBox(0, 0, 100, 24, "h: ", 0, new Set());
+    setButton = new TextButton(0, 0, 0, 24, "SET", new Set());
+    loadBGButton = new TextButton(0, 0, 0, 24, "LOAD BG", new LoadBG());
+    deleteBGButton = new TextButton(0, 0, 0, 24, "DELETE BG", new DeleteBG());
+    
+    chooser.add(xText);
+    chooser.add(yText);
+    chooser.add(wText);
+    chooser.add(hText);
+    chooser.add(setButton);
+    chooser.add(loadBGButton);
+    chooser.add(deleteBGButton);
+  }
+  
+  void keyPress() {
+    xText.type();
+    yText.type();
+    wText.type();
+    hText.type();
+  }
+  
+  class ImageButton extends Clickable { 
+    ImageButton () {
+      super(0, 0, 24, 24, false);
+    }
+
+    void display () {
+      super.display();
+      rect(x+3, y+3, 18, 18);
+      line(x+3, y+8, x+8, y+3);
+      line(x+21, y+8, x+16, y+3);
+      line(x+21, y+16, x+16, y+21);
+      line(x+3, y+16, x+8, y+21);
+    }
+  }
+  
+  public void loadBG(File file) {
+    if (file != null) {
+      float x2 = xText.val+wText.val;
+      float y2 = yText.val+hText.val;
+      backgroundImage = new BackgroundImage(file.getPath(), xText.val, yText.val, x2, y2);
+    }
+  }
+  
+  class Set implements Action {
+    void run() {
+      if (backgroundImage != null) {
+        backgroundImage.x1 = xText.val;
+        backgroundImage.y1 = yText.val;
+        backgroundImage.x2 = xText.val+wText.val;
+        backgroundImage.y2 = yText.val+hText.val;
+      }
+    }
+  }
+  
+  class LoadBG implements Action {
+    void run() {
+      selectInput("Load Image", "loadBG", null, ImageTool.this);
+    }
+  }
+  
+  class DeleteBG implements Action {
+    void run() {
+      backgroundImage = null;
     }
   }
 }
@@ -741,6 +827,8 @@ class ZoomOutTool extends Tool {
 }
 
 
+
+
 class EditTool extends Tool {
   
   TextBox xText;
@@ -867,7 +955,6 @@ class EditTool extends Tool {
     
     void display () {
       super.display();
-      fill(255);
       beginShape();
       vertex(x+4, y+4);
       vertex(x+19, y+9);

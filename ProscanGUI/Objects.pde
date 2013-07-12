@@ -234,13 +234,13 @@ class CurveObj extends DrawingObj {
   float speed;
   float detail = 12;
   
-  CurveObj(int iDet, float is, float ix1, float iy1, float ix2, float iy2) {
+  CurveObj(float is, int iDet, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2, ix1+(ix2-ix1)*0.33, ix1+(ix2-ix1)*0.66}, new float[]{iy1, iy2, iy1+(iy2-iy1)*0.33, iy1+(iy2-iy1)*0.66});
     speed = is;
     detail = iDet;
   }
   
-  CurveObj(int iDet, float is, float ix1, float iy1, float ix2, float iy2, float cx1, float cy1, float cx2, float cy2) {
+  CurveObj(float is, int iDet, float ix1, float iy1, float ix2, float iy2, float cx1, float cy1, float cx2, float cy2) {
     super(new float[]{ix1, ix2, cx1, cx2}, new float[]{iy1, iy2, cy1, cy2});
     speed = is;
     detail = iDet;
@@ -335,7 +335,7 @@ class EllipseObj extends DrawingObj {
   float speed;
   float detail = 5;
  
-  EllipseObj(int iDet, float is, float ix1, float iy1, float ix2, float iy2) {
+  EllipseObj(float is, int iDet, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
     speed = is;
     detail = iDet;
@@ -430,10 +430,10 @@ class FillObj extends DrawingObj {
  
   FillObj(float is, boolean iHor, boolean iVer, float isp, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
+    speed = is;
     horizontal = iHor;
     vertical = iVer;
     spacing = isp;
-    speed = is;
   }
   
   void display(Stage iStage, boolean simple) {
@@ -475,7 +475,7 @@ class FillObj extends DrawingObj {
   }
   
   String toString() {
-    return "FILL "+" "+speed+" "+horizontal+" "+vertical+" "+spacing+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
+    return "FILL "+speed+" "+horizontal+" "+vertical+" "+spacing+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
   }
 }
 
@@ -485,7 +485,7 @@ class GroupObj extends DrawingObj {
   ArrayList<float[]> relativeX;
   ArrayList<float[]> relativeY;
   
-  GroupObj(Stage iStage) {
+  GroupObj() {
     super(new float[]{0, 0}, new float[]{0, 0});
     objs = new ArrayList<DrawingObj>();
     init();
@@ -673,7 +673,7 @@ class Selection extends GroupObj {
   String clipboard = "";
   
   Selection() {
-    super(mainStage);
+    super();
     buttonSize = 8;
     dragButton.basecolor = color(0, 255, 0);
     dragButton.pressedcolor = dragButton.highlightcolor = color(0, 200, 0);
@@ -787,6 +787,42 @@ class Selection extends GroupObj {
       toPrint += objs.get(i).toString()+"\n";
     }
     return toPrint;
+  }
+}
+
+class BackgroundImage {
+  float x1;
+  float y1;
+  float x2;
+  float y2;
+  String path;
+  PImage img;
+  
+  BackgroundImage(String iPath, float ix1, float iy1, float ix2, float iy2) {
+    x1 = ix1;
+    y1 = iy1;
+    x2 = ix2;
+    y2 = iy2;
+    path = iPath;
+    img = loadImage(path);
+  }
+  
+  void display(Stage iStage, boolean simple) {
+    int px1 = iStage.localToGlobalX(x1);
+    int py1 = iStage.localToGlobalY(y1);
+    int px2 = iStage.localToGlobalX(x2);
+    int py2 = iStage.localToGlobalY(y2);
+    noFill();
+    noStroke();
+    if (simple) {
+    } else {
+      tint(255, 126);
+      image(img, px1, py1, px2-px1, py2-py1);
+    }
+  }
+  
+  String toString() {
+    return "BACKGROUND "+path+" "+x1+" "+y1+" "+x2+" "+y2;
   }
 }
 

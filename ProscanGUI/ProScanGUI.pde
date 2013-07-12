@@ -21,17 +21,18 @@ ArrayList<Command> commandList;
 // Window info
 Stage mainStage;
 Stage miniStage;
-int backGroundColor = #66a3d2;
 final int width = 1280;
 final int height = 960;
 final int leftMargin = 20;
 final int rightMargin = 20;
 final int topMargin = 77;
 final int bottomMargin = 50;
+int backGroundColor = #66a3d2;
 float gridSize = 1;
 DrawingObj currentDraw = null;
 Selection objSelection;
 ArrayList<DrawingObj> drawingList;
+BackgroundImage backgroundImage = null;
 
 // Interface
 final float maxSpeed = 10000;
@@ -56,6 +57,7 @@ CurveTool curveTool;
 RectTool rectTool;
 EllipseTool ellipseTool;
 FillTool fillTool;
+ImageTool imageTool;
 ZoomInTool zoomInTool;
 ZoomOutTool zoomOutTool;
 EditTool editTool;
@@ -101,6 +103,7 @@ void setup() {
   rectTool = new RectTool();
   ellipseTool = new EllipseTool();
   fillTool = new FillTool();
+  imageTool = new ImageTool();
   zoomInTool = new ZoomInTool();
   zoomOutTool = new ZoomOutTool();
   editTool = new EditTool();
@@ -113,6 +116,7 @@ void setup() {
   drawingTools.add(rectTool);
   drawingTools.add(ellipseTool);
   drawingTools.add(fillTool);
+  drawingTools.add(imageTool);
   drawingTools.add(zoomInTool);
   drawingTools.add(zoomOutTool);
   drawingTools.add(editTool);
@@ -167,6 +171,10 @@ void draw() {
   
   // Draw stage
   mainStage.display();
+  
+  if (backgroundImage != null) {
+    backgroundImage.display(mainStage, false);
+  }
   
   // Origin Dot
   stroke(0);

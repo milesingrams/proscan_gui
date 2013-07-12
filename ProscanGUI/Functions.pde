@@ -70,12 +70,12 @@ void loadData(File file) {
 
 ArrayList<DrawingObj> parseStrings(String[] strings) {
   ArrayList<GroupObj> groups = new ArrayList<GroupObj>();
-  groups.add(new GroupObj(mainStage));
+  groups.add(new GroupObj());
   
   for (int i=0; i<strings.length; i++) {
     String[] vals = splitTokens(strings[i], " ");
     if (vals[0].equals("GROUP")) {
-      groups.add(new GroupObj(mainStage));
+      groups.add(new GroupObj());
     } else
     if (vals[0].equals("ENDGROUP")) {
         GroupObj lastGroup = groups.remove(groups.size()-1);
@@ -104,8 +104,8 @@ DrawingObj parseVals(String[] vals) {
     return new LineObj(speed, x1, y1, x2, y2);
   } else 
   if (vals[0].equals("CURVE")) {
-    int detail = parseInt(vals[1].trim());
-    int speed = parseInt(vals[2].trim());
+    int speed = parseInt(vals[1].trim());
+    int detail = parseInt(vals[2].trim());
     float x1 = parseFloat(vals[3].trim());
     float y1 = parseFloat(vals[4].trim());
     float x2 = parseFloat(vals[5].trim());
@@ -114,7 +114,7 @@ DrawingObj parseVals(String[] vals) {
     float cy1 = parseFloat(vals[8].trim());
     float cx2 = parseFloat(vals[9].trim());
     float cy2 = parseFloat(vals[10].trim());
-    return new CurveObj(detail, speed, x1, y1, x2, y2, cx1, cy1, cx2, cy2);
+    return new CurveObj(speed, detail, x1, y1, x2, y2, cx1, cy1, cx2, cy2);
   } else
   if (vals[0].equals("RECT")) {
     int speed = parseInt(vals[1].trim());
@@ -125,13 +125,24 @@ DrawingObj parseVals(String[] vals) {
     return new RectObj(speed, x1, y1, x2, y2);
   } else
   if (vals[0].equals("ELLIPSE")) {
-    int detail = parseInt(vals[1].trim());
-    int speed = parseInt(vals[2].trim());
+    int speed = parseInt(vals[1].trim());
+    int detail = parseInt(vals[2].trim());
     float x1 = parseFloat(vals[3].trim());
     float y1 = parseFloat(vals[4].trim());
     float x2 = parseFloat(vals[5].trim());
     float y2 = parseFloat(vals[6].trim());
-    return new EllipseObj(detail, speed, x1, y1, x2, y2);
+    return new EllipseObj(speed, detail, x1, y1, x2, y2);
+  } else 
+  if (vals[0].equals("FILL")) {
+    int speed = parseInt(vals[1].trim());
+    boolean horizontal = parseBoolean(vals[2].trim());
+    boolean vertical = parseBoolean(vals[3].trim());
+    float spacing = parseFloat(vals[4].trim());
+    float x1 = parseFloat(vals[5].trim());
+    float y1 = parseFloat(vals[6].trim());
+    float x2 = parseFloat(vals[7].trim());
+    float y2 = parseFloat(vals[8].trim());
+    return new FillObj(speed, horizontal, vertical, spacing, x1, y1, x2, y2);
   } else {
     return new DrawingObj(new float[]{}, new float[]{});
   }
