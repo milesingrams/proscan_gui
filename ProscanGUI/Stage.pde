@@ -56,25 +56,20 @@ class Stage {
   }
   
   void setZoom(float ix, float iy, float zoom) {
-    setPos(ix, iy, rangeX*zoom);
+    setRangeX(rangeX*zoom);
+    setPos(ix, iy);
   }
   
-  void setPos(float imx, float imy, float irx) {
+  void setPos(float imx, float imy) {
+    lowX = imx-rangeX/2;
+    lowY = imy-rangeY/2;
+  }
+  
+  void setRangeX(float irx) {
     if (irx > 0) {
       rangeX = irx;
       rangeY = (float(h)/w)*rangeX;
     }
-    lowX = imx-rangeX/2;
-    lowY = imy-rangeY/2;
-    updatePos();
-  }
-  
-  void updatePos() {
-    for (int i=0; i<drawingList.size(); i++) {
-      drawingList.get(i).updatePos();
-    }
-    objSelection.updatePos();
-  
   }
   
   void display() {

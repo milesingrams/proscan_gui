@@ -10,10 +10,8 @@ boolean shutter;
 // Proscan stage
 Serial serialConn;  // The serial serialConn object
 boolean firstContact = false;
-boolean runningCommand = false;
-final int precision = 2;
-final int travelMoveSpeed = 10000;
-final int baseMoveSpeed = 5000;
+float precision = 0.5;
+float baseMoveSpeed = 5000;
 float scopeX = 0;
 float scopeY = 0;
 ArrayList<Command> commandList;
@@ -21,6 +19,7 @@ ArrayList<Command> commandList;
 // Window info
 Stage mainStage;
 Stage miniStage;
+float miniStageRangeX = 25400;
 final int width = 1280;
 final int height = 960;
 final int leftMargin = 20;
@@ -29,18 +28,19 @@ final int topMargin = 77;
 final int bottomMargin = 50;
 int backGroundColor = #66a3d2;
 float gridSize = 1;
-DrawingObj currentDraw = null;
 Selection objSelection;
-ArrayList<DrawingObj> drawingList;
+DrawingObj currentDraw = null;
 BackgroundImage backgroundImage = null;
+ArrayList<DrawingObj> drawingList;
 
 // Interface
 final float maxSpeed = 10000;
-final float maxTime = 10;
+final float maxTime = 100;
 int fontSize = 12;
 PFont font = createFont("Ariel", 12);
 Tool currentTool;
 boolean dragging = false;
+boolean paused = false;
 
 // Toolbars
 ArrayList<Tool> drawingTools;
@@ -51,13 +51,15 @@ Toolbar controlToolbar;
 
 // Tool Buttons
 
+MoveTool moveTool;
 PointTool pointTool;
 LineTool lineTool;
 CurveTool curveTool;
 RectTool rectTool;
 EllipseTool ellipseTool;
 FillTool fillTool;
-ImageTool imageTool;
+ScanImageTool scanImageTool;
+BGImageTool bgImageTool;
 ZoomInTool zoomInTool;
 ZoomOutTool zoomOutTool;
 EditTool editTool;
@@ -69,6 +71,7 @@ TextButton loadButton;
 TextButton posButton;
 TextButton zeroButton;
 TextButton stopButton;
+TextButton pauseButton;
 TextButton runButton;
 
 // initialization
@@ -76,7 +79,9 @@ void setup() {
   // Stage init;
   size(width, height);
   mainStage = new Stage(leftMargin, topMargin, width-leftMargin-rightMargin, height-topMargin-bottomMargin, 1000);
-  miniStage = new Stage(mainStage.x+mainStage.w-200, mainStage.y+mainStage.h-200, 200, 200, 50000);
+  miniStage = new Stage(mainStage.x+mainStage.w-200, mainStage.y+mainStage.h-200, 200, 200, miniStageRangeX);
+  miniStage.lowX = 0;
+  miniStage.lowY = 0;
   size(leftMargin+mainStage.w+rightMargin, topMargin+mainStage.h+bottomMargin);
   textFont(font);
   
@@ -95,28 +100,33 @@ void setup() {
   posButton = new TextButton(0, 0, 0, 24, "POS", new PosAction());
   zeroButton = new TextButton(0, 0, 0, 24, "ZERO", new ZeroAction());
   stopButton = new TextButton(0, 0, 0, 24, "STOP", new StopAction());
+  pauseButton = new TextButton(0, 0, 0, 24, "PAUSE", new PauseAction());
   runButton = new TextButton(0, 0, 0, 24, "RUN", new RunAction());
   
+  moveTool = new MoveTool();
   pointTool = new PointTool();
   lineTool = new LineTool();
   curveTool = new CurveTool();
   rectTool = new RectTool();
   ellipseTool = new EllipseTool();
   fillTool = new FillTool();
-  imageTool = new ImageTool();
+  scanImageTool = new ScanImageTool();
+  bgImageTool = new BGImageTool();
   zoomInTool = new ZoomInTool();
   zoomOutTool = new ZoomOutTool();
   editTool = new EditTool();
   settingsTool = new SettingsTool();
   
   drawingTools = new ArrayList<Tool>();
+  drawingTools.add(moveTool);
   drawingTools.add(pointTool);
   drawingTools.add(lineTool);
   drawingTools.add(curveTool);
   drawingTools.add(rectTool);
   drawingTools.add(ellipseTool);
   drawingTools.add(fillTool);
-  drawingTools.add(imageTool);
+  drawingTools.add(scanImageTool);
+  drawingTools.add(bgImageTool);
   drawingTools.add(zoomInTool);
   drawingTools.add(zoomOutTool);
   drawingTools.add(editTool);
@@ -137,6 +147,7 @@ void setup() {
   controlTools.add(posButton);
   controlTools.add(zeroButton);
   controlTools.add(stopButton);
+  controlTools.add(pauseButton);
   controlTools.add(runButton);
   controlToolbar.setTools(controlTools);
   
@@ -144,11 +155,10 @@ void setup() {
   
   // Make Selection
   objSelection = new Selection();
-  
   /*
   // connect to solenoid
   tcpServer = new Server(this, tcpPort);
-  
+  println(Serial.list());
   
   // Using the first available serialConn (might be different on your computer)
   serialConn = new Serial(this, Serial.list()[0], 9600);
@@ -158,9 +168,9 @@ void setup() {
     delay(1000);
   }
   
-  addCommand(new ShutterCommand(false, 0));
-  addCommand(new PosCommand());
+  setShutter(false);
   addCommand(new TextCommand("BLSH", "0"));
+  
   */
 }
 
@@ -234,6 +244,13 @@ void draw() {
   int hx = miniStage.localToGlobalX(mainStage.lowX+mainStage.rangeX);
   int hy = miniStage.localToGlobalY(mainStage.lowY+mainStage.rangeY);
   rect(lx, ly, hx-lx, hy-ly);
+  
+  // Show Ministage Scope Position
+  posX = miniStage.localToGlobalX(scopeX);
+  posY = miniStage.localToGlobalY(scopeY);
+  noStroke();
+  fill(0, 255, 0);
+  ellipse(posX, posY, 2, 2);
     
   // draw toolbars
   drawingToolbar.display();
@@ -283,7 +300,7 @@ void mousePressed() {
     }
     
     if (miniStage.mouseOver()) {
-      mainStage.setPos(miniStage.globalToLocalX(mouseX), miniStage.globalToLocalY(mouseY), mainStage.rangeX);
+      mainStage.setPos(miniStage.globalToLocalX(mouseX), miniStage.globalToLocalY(mouseY));
       zoomInTool.setVals(mainStage.lowX+mainStage.rangeX/2, mainStage.lowY+mainStage.rangeY/2, mainStage.rangeX);
       zoomOutTool.setVals(mainStage.lowX+mainStage.rangeX/2, mainStage.lowY+mainStage.rangeY/2, mainStage.rangeX);
     }
@@ -291,7 +308,7 @@ void mousePressed() {
   if (mouseButton == RIGHT) {
     float dx = mainStage.globalToLocalX(mouseX);
     float dy = mainStage.globalToLocalY(mouseY);
-    addCommand(new SpeedCommand(travelMoveSpeed));
+    addCommand(new SpeedCommand(baseMoveSpeed));
     addCommand(new MoveCommand(dx, dy, false));
   }
 }
@@ -332,11 +349,10 @@ void serialEvent(Serial srialConn) {
     }
   } else {
     if (input != null) {
-      println(input);
       if (commandList.size() > 0) {
         Command currCommand = commandList.get(0);
         currCommand.recieve(input);
-      }    
+      }
     }
   }  
 }
@@ -352,9 +368,12 @@ void addCommand(Command command) {
 // runs next serial command
 void runNext() {
   if (commandList.size() >= 1) {
-    Command currCommand = commandList.get(0);
-    currCommand.send();
-    println(currCommand);
+    if (paused == false) {
+      Command currCommand = commandList.get(0);
+      currCommand.send();
+    }
+  } else {
+    addCommand(new PosCommand());
   }
 }
 

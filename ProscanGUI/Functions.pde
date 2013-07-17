@@ -24,9 +24,26 @@ class ZeroAction implements Action {
 
 class StopAction implements Action {
   void run() {
+    paused = true;
     commandList.clear();
     setShutter(false);
     addCommand(new TextCommand("K", ""));
+    paused = false;
+  }
+}
+
+class PauseAction implements Action {
+  void run() {
+    if (paused == false) {
+      paused = true;
+      pauseButton.text = "PLAY";
+      pauseButton.basecolor = color(190);
+    } else {
+      paused = false;
+      pauseButton.text = "PAUSE";
+      pauseButton.basecolor = color(230);
+      runNext();
+    }
   }
 }
 
@@ -91,9 +108,10 @@ ArrayList<DrawingObj> parseStrings(String[] strings) {
 DrawingObj parseVals(String[] vals) {
   if (vals[0].equals("POINT")) {
     int time = parseInt(vals[1].trim());
-    float x = parseFloat(vals[2].trim());
-    float y = parseFloat(vals[3].trim());
-    return new PointObj(time, x, y);
+    boolean shut = parseBoolean(vals[2].trim());
+    float x = parseFloat(vals[3].trim());
+    float y = parseFloat(vals[4].trim());
+    return new PointObj(time, shut, x, y);
   } else
   if (vals[0].equals("LINE")) {
     int speed = parseInt(vals[1].trim());

@@ -21,7 +21,6 @@ class TextCommand implements Command {
   }
   
   void recieve(String input) {
-    runningCommand = false;
     commandList.remove(0);
     runNext();
   }
@@ -74,7 +73,6 @@ class PosCommand implements Command {
     String[] vals = splitTokens(input, ", ");
     scopeX = float(parseInt(vals[0].trim()))/10;
     scopeY = float(parseInt(vals[1].trim()))/10;
-    runningCommand = false;
     commandList.remove(0);
     runNext();
   }
@@ -92,11 +90,10 @@ class SpeedCommand implements Command {
   }
   
   void send() {
-    serialConn.write("SMS,"+str(int(speed*10))+",i"+"\r");
+    serialConn.write("SMS,"+str(int(speed*100))+",i"+"\r");
   }
   
   void recieve(String input) {
-    runningCommand = false;
     commandList.remove(0);
     runNext();
   }
@@ -111,6 +108,8 @@ class MoveCommand implements Command {
   float destY;
   boolean shut;
   boolean recieved = false;
+  float aveDeltaScope = 0;
+  float sensitivity = 0.07;
   
   MoveCommand(float ix, float iy, boolean iShut) {
     destX = ix;
@@ -124,27 +123,36 @@ class MoveCommand implements Command {
   
   void recieve(String input) {
     String[] vals = splitTokens(input, ", ");
+    
     if (recieved == false) {
       recieved = true;
       serialConn.write("PS\r");
-      setShutter(shut);
     } else {
-      scopeX = float(parseInt(vals[0].trim()))/10;
-      scopeY = float(parseInt(vals[1].trim()))/10;
-      float distX = abs(destX-scopeX);
-      float distY = abs(destY-scopeY);
-      float dist = sqrt(pow(distX, 2)+pow(distY, 2));
       
-      if (dist <= precision) {
-        runningCommand = false;
-        if (shutter == true) {
-          setShutter(false);
+      float newScopeX = float(parseInt(vals[0].trim()))/10;
+      float newScopeY = float(parseInt(vals[1].trim()))/10;
+      float deltaScope = sqrt(pow((scopeX-newScopeX), 2)+pow((scopeY-newScopeY), 2));
+      aveDeltaScope = (aveDeltaScope+deltaScope)/2;
+      scopeX = newScopeX;
+      scopeY = newScopeY;
+      
+      float destDist = sqrt(pow((destX-scopeX), 2)+pow((destY-scopeY), 2));
+      
+      if (destDist > precision) {
+        if (shut && !shutter && aveDeltaScope > sensitivity) {
+          setShutter(true);
         }
-        commandList.remove(0);
-        runNext();
       } else {
-        serialConn.write("PS\r");
+        if (aveDeltaScope < sensitivity) {
+          if (shut && shutter) {
+            setShutter(false);
+          }
+          commandList.remove(0);
+          runNext();
+          return;
+        }
       }
+      serialConn.write("PS\r");
     }
   }
   

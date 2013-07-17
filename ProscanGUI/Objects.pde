@@ -2,8 +2,6 @@ class DrawingObj {
   int numCoords;
   float[] xCoords;
   float[] yCoords;
-  float midX;
-  float midY;
   float[] relativeCoordsX;
   float[] relativeCoordsY;
   Clickable[] vertexButtons;
@@ -39,11 +37,11 @@ class DrawingObj {
       }
     }
     if (dragButton.pressed) {
-      midX = toGrid(mainStage.localMouseX());
-      midY = toGrid(mainStage.localMouseY());
+      float minX = toGrid(mainStage.localMouseX()-(maxX()-minX())/2);
+      float minY = toGrid(mainStage.localMouseY()-(maxY()-minY())/2);
       for (int i=0; i<numCoords; i++) {
-        xCoords[i] = midX + relativeCoordsX[i];
-        yCoords[i] = midY + relativeCoordsY[i];
+        xCoords[i] = minX + relativeCoordsX[i];
+        yCoords[i] = minY + relativeCoordsY[i];
       }
       updatePos();
     }
@@ -54,16 +52,14 @@ class DrawingObj {
       vertexButtons[i].x = mainStage.localToGlobalX(xCoords[i])-buttonSize/2;
       vertexButtons[i].y = mainStage.localToGlobalY(yCoords[i])-buttonSize/2;
     }
-    midX = midX();
-    midY = midY();
     dragButton.x = mainStage.localToGlobalX(midX())-buttonSize/2;
     dragButton.y = mainStage.localToGlobalY(midY())-buttonSize/2;
   }
   
   void setRelativeCoords() {
     for (int i=0; i<numCoords; i++) {
-      relativeCoordsX[i] = xCoords[i]-midX();
-      relativeCoordsY[i] = yCoords[i]-midY();
+      relativeCoordsX[i] = xCoords[i]-minX();
+      relativeCoordsY[i] = yCoords[i]-minY();
     }
   }
   
@@ -164,10 +160,12 @@ class DrawingObj {
 
 class PointObj extends DrawingObj {
   float time;
+  boolean shut;
  
-  PointObj(float it, float ix, float iy) {
+  PointObj(float it, boolean iShut, float ix, float iy) {
     super(new float[]{ix}, new float[]{iy});
     time = it;
+    shut = iShut;
   }
  
   void display(Stage iStage, boolean simple) {
@@ -188,11 +186,11 @@ class PointObj extends DrawingObj {
   void makeCommands() {
     addCommand(new SpeedCommand(baseMoveSpeed));
     addCommand(new MoveCommand(xCoords[0], yCoords[0], false));
-    addCommand(new ShutterCommand(true, time));
+    addCommand(new ShutterCommand(shut, time));
   }
   
   String toString() {
-    return "POINT "+time+" "+xCoords[0]+" "+yCoords[0];
+    return "POINT "+time+" "+str(shut)+" "+xCoords[0]+" "+yCoords[0];
   }
 }
 
@@ -471,7 +469,26 @@ class FillObj extends DrawingObj {
   }
   
   void makeCommands() {
-
+    float lx = minX();
+    float ly = minY();
+    float hx = maxX();
+    float hy = maxY();
+    if (horizontal) {
+      for (float i=ly; i<=hy; i+=spacing) {
+        addCommand(new SpeedCommand(baseMoveSpeed));
+        addCommand(new MoveCommand(lx, i, false));
+        addCommand(new SpeedCommand(speed));
+        addCommand(new MoveCommand(hx, i, true));
+      }
+    }
+    if (vertical) {
+      for (float i=lx; i<=hx; i+=spacing) {
+        addCommand(new SpeedCommand(baseMoveSpeed));
+        addCommand(new MoveCommand(i, ly, false));
+        addCommand(new SpeedCommand(speed));
+        addCommand(new MoveCommand(i, hy, true));
+      }
+    }
   }
   
   String toString() {
@@ -652,6 +669,10 @@ class GroupObj extends DrawingObj {
         FillObj fillObj = (FillObj)currObj;
         fillObj.speed = speed;
       } else
+      if (currObj instanceof ScanImage) {
+        ScanImage scanImage = (ScanImage)currObj;
+        scanImage.speed = speed;
+      } else
       if (currObj instanceof GroupObj) {
         GroupObj groupObj = (GroupObj)currObj;
         groupObj.setSpeed(speed);
@@ -822,7 +843,132 @@ class BackgroundImage {
   }
   
   String toString() {
-    return "BACKGROUND "+path+" "+x1+" "+y1+" "+x2+" "+y2;
+    return "BGIMAGE "+path+" "+x1+" "+y1+" "+x2+" "+y2;
+  }
+}
+
+class ScanImage extends GroupObj {
+  float x1, y1;
+  float x2, y2;
+  float speed;
+  String path;
+  PImage img;
+  boolean horizontal;
+  boolean vertical;
+  
+  ScanImage(float is, String iPath, boolean iHor, boolean iVer, float ix1, float iy1, float ix2, float iy2) {
+    super();
+    speed = is;
+    path = iPath;
+    img = loadImage(path);
+    horizontal = iHor;
+    vertical = iVer;
+    x1 = ix1;
+    y1 = iy1;
+    x2 = ix2;
+    y2 = iy2;
+    addLines();
+  }
+  
+  boolean isBlack(int ip) {
+    if (brightness(ip) < 255/2) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+  
+  void addLines() {
+    float w = x2-x1;
+    float h = y2-y1;
+    int imgH = img.height;
+    int imgW = img.width;
+    boolean makingLine = false;
+    ArrayList<DrawingObj> tempLines = new ArrayList<DrawingObj>();
+    LineObj currLine = null;
+    img.loadPixels();
+    
+    if (horizontal) {
+      for (int i=0; i<imgH; i++) {
+        float y = y1+i*(h/imgH);
+        for (int j=0; j<imgW; j++) {
+          float x = x1+j*(w/imgW);
+          int pixel = img.pixels[i*imgW+j];
+          if (currLine != null) {
+            if (isBlack(pixel) == false) {
+              currLine.xCoords[1] = x;
+              currLine.yCoords[1] = y;
+              tempLines.add(currLine);
+              currLine = null;
+            }
+          } else {
+            if (isBlack(pixel) == true) {
+              currLine = new LineObj(speed, x, y, 0, 0);
+            }
+          }
+        }
+        if (currLine != null) {
+          currLine.xCoords[1] = w;
+          currLine.yCoords[1] = y;
+          tempLines.add(currLine);
+          currLine = null;
+        }
+      }
+    }
+    if (vertical) {
+      for (int i=0; i<imgW; i++) {
+        float x = x1+i*(w/imgW);
+        for (int j=0; j<imgH; j++) {
+          float y = y1+j*(h/imgH);
+          int pixel = img.pixels[j*imgW+i];
+          if (currLine != null) {
+            if (isBlack(pixel) == false) {
+              currLine.xCoords[1] = x;
+              currLine.yCoords[1] = y;
+              tempLines.add(currLine);
+              currLine = null;
+            }
+          } else {
+            if (isBlack(pixel) == true) {
+              currLine = new LineObj(speed, x, y, 0, 0);
+            }
+          }
+        }
+        if (currLine != null) {
+          currLine.xCoords[1] = x;
+          currLine.yCoords[1] = h;
+          tempLines.add(currLine);
+          currLine = null;
+        }
+      }
+    }
+    insert(tempLines);
+  }
+  
+  void display(Stage iStage, boolean simple) {
+    update();
+    int px1 = iStage.localToGlobalX(xCoords[0]);
+    int py1 = iStage.localToGlobalY(yCoords[0]);
+    int px2 = iStage.localToGlobalX(xCoords[1]);
+    int py2 = iStage.localToGlobalY(yCoords[1]);
+    if (simple) {
+      tint(255, 126);
+      image(img, px1, py1, px2-px1, py2-py1);
+    } else {
+      tint(255, 126);
+      image(img, px1, py1, px2-px1, py2-py1);
+      for (int i=0; i<objs.size(); i++) {
+        objs.get(i).display(iStage, false);
+      }
+      noFill();
+      stroke(220);
+      rect(px1-1, py1-1, px2-px1+2, py2-py1+2);
+      displayButtons();
+    }
+  }
+  
+  String toString() {
+    return "IMAGE "+speed+" "+path+" "+horizontal+" "+vertical+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
   }
 }
 
