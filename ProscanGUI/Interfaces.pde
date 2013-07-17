@@ -259,18 +259,22 @@ class TextBox extends Interface {
   void press() {
     if (visible) {
       if (box.over()) {
-        box.press();
         selected = true;
+        selectedText = this;
+        box.press();
         if (mouseEvent.getClickCount() == 2) {
           text = "";
         }
       } else {
-        box.release();
-        selected = false;
-        if (text.length() > 0) {
-          val = parseFloat(text);
+        if (selected) {
+          selected = false;
+          selectedText = null;
+          box.release();
+          if (text.length() > 0) {
+            val = parseFloat(text);
+          }
+          text = str(val);
         }
-        text = str(val);
       }
     }
   }

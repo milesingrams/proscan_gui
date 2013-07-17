@@ -39,8 +39,10 @@ final float maxTime = 100;
 int fontSize = 12;
 PFont font = createFont("Ariel", 12);
 Tool currentTool;
+TextBox selectedText = null;
 boolean dragging = false;
 boolean paused = false;
+boolean beginPress = false;
 
 // Toolbars
 ArrayList<Tool> drawingTools;
@@ -275,9 +277,16 @@ void draw() {
 }
 
 void keyPressed() {
-  for (int i=0; i<drawingTools.size(); i++) {
-    drawingTools.get(i).keyPress();
+  if (selectedText == null) {
+    if (keyCode == BACKSPACE) {
+      if (objSelection.selected) {
+        objSelection.delete();
+      }
+    }
+  } else {
+    selectedText.type();
   }
+  currentTool.keyPress();
 }
 
 void mousePressed() {
@@ -296,31 +305,43 @@ void mousePressed() {
     }
     
     for (int i=0; i<drawingTools.size(); i++) {
-      drawingTools.get(i).press();
+      Tool tool = drawingTools.get(i);
+      if (tool.button.over()) {
+        tool.activate();
+        beginPress = false;
+      }
     }
     
     if (miniStage.mouseOver()) {
       mainStage.setPos(miniStage.globalToLocalX(mouseX), miniStage.globalToLocalY(mouseY));
       zoomInTool.setVals(mainStage.lowX+mainStage.rangeX/2, mainStage.lowY+mainStage.rangeY/2, mainStage.rangeX);
       zoomOutTool.setVals(mainStage.lowX+mainStage.rangeX/2, mainStage.lowY+mainStage.rangeY/2, mainStage.rangeX);
+    } else
+    if (mainStage.mouseOver()) {
+      beginPress = true;
+      currentTool.press();
     }
   }
   if (mouseButton == RIGHT) {
-    float dx = mainStage.globalToLocalX(mouseX);
-    float dy = mainStage.globalToLocalY(mouseY);
-    addCommand(new SpeedCommand(baseMoveSpeed));
-    addCommand(new MoveCommand(dx, dy, false));
+    if (mainStage.mouseOver()) {
+      float dx = mainStage.globalToLocalX(mouseX);
+      float dy = mainStage.globalToLocalY(mouseY);
+      addCommand(new SpeedCommand(baseMoveSpeed));
+      addCommand(new MoveCommand(dx, dy, false));
+    }
   }
 }
 
 void mouseDragged() {
-  for (int i=0; i<drawingTools.size(); i++) {
-    drawingTools.get(i).drag();
+  if (beginPress) {
+    currentTool.drag();
   }
 }
 
+
 // performed when mouse is released
 void mouseReleased() {
+  objSelection.release();
   for (int i=0; i<chooserToolbar.tools.size(); i++) {
     chooserToolbar.tools.get(i).release();
   }
@@ -332,11 +353,12 @@ void mouseReleased() {
   for (int i=0; i<controlToolbar.tools.size(); i++) {
     controlToolbar.tools.get(i).release();
   }
-    
-  for (int i=0; i<drawingTools.size(); i++) {
-    drawingTools.get(i).release();
+  if (beginPress) {
+    currentTool.release();
   }
+  beginPress = false;
 }
+
 
 // Called whenever there is something available to read
 void serialEvent(Serial srialConn) {

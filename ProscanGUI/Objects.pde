@@ -154,6 +154,10 @@ class DrawingObj {
     dragButton.display();
   }
   
+  void setTime(float it){}
+  void setSpeed(float is){}
+  void setDetail(int iDet){}
+  void setSpacing(float isp){}
   void display(Stage iStage, boolean simple){}
   void makeCommands(){}
 }
@@ -164,8 +168,16 @@ class PointObj extends DrawingObj {
  
   PointObj(float it, boolean iShut, float ix, float iy) {
     super(new float[]{ix}, new float[]{iy});
-    time = it;
+    setTime(it);
     shut = iShut;
+  }
+  
+  void setTime(float it) {
+    if (it > 0) {
+      time = it;
+    } else {
+      time = 0;
+    }
   }
  
   void display(Stage iStage, boolean simple) {
@@ -199,7 +211,15 @@ class LineObj extends DrawingObj {
  
   LineObj(float is, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
-    speed = is;
+    setSpeed(is);
+  }
+  
+  void setSpeed(float is) {
+    if (is > 0) {
+      speed = is;
+    } else {
+      speed = 0;
+    }
   }
  
   void display(Stage iStage, boolean simple) {
@@ -230,18 +250,34 @@ class LineObj extends DrawingObj {
 
 class CurveObj extends DrawingObj {
   float speed;
-  float detail = 12;
+  float detail;
   
   CurveObj(float is, int iDet, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2, ix1+(ix2-ix1)*0.33, ix1+(ix2-ix1)*0.66}, new float[]{iy1, iy2, iy1+(iy2-iy1)*0.33, iy1+(iy2-iy1)*0.66});
-    speed = is;
-    detail = iDet;
+    setSpeed(is);
+    setDetail(iDet);
   }
   
   CurveObj(float is, int iDet, float ix1, float iy1, float ix2, float iy2, float cx1, float cy1, float cx2, float cy2) {
     super(new float[]{ix1, ix2, cx1, cx2}, new float[]{iy1, iy2, cy1, cy2});
-    speed = is;
-    detail = iDet;
+    setSpeed(is);
+    setDetail(iDet);
+  }
+  
+  void setSpeed(float is) {
+    if (is > 0) {
+      speed = is;
+    } else {
+      speed = 0;
+    }
+  }
+  
+  void setDetail(int iDet) {
+    if (iDet >= 1) {
+      detail = iDet;
+    } else {
+      detail = 1;
+    }
   }
  
   void display(Stage iStage, boolean simple) {
@@ -297,7 +333,15 @@ class RectObj extends DrawingObj {
  
   RectObj(float is, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
-    speed = is;
+    setSpeed(is);
+  }
+  
+  void setSpeed(float is) {
+    if (is > 0) {
+      speed = is;
+    } else {
+      speed = 0;
+    }
   }
   
   void display(Stage iStage, boolean simple) {
@@ -331,16 +375,33 @@ class RectObj extends DrawingObj {
 
 class EllipseObj extends DrawingObj {
   float speed;
-  float detail = 5;
+  int detail;
  
   EllipseObj(float is, int iDet, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
-    speed = is;
-    detail = iDet;
+    setSpeed(is);
+    setDetail(iDet);
+  }
+  
+  void setSpeed(float is) {
+    if (is > 0) {
+      speed = is;
+    } else {
+      speed = 0;
+    }
+  }
+  
+  void setDetail(int iDet) {
+    if (iDet >= 4) {
+      detail = iDet;
+    } else {
+      detail = 4;
+    }
   }
   
   void display(Stage iStage, boolean simple) {
     update();
+    float quarterDetail = round(float(detail)/4);
     int px1 = iStage.localToGlobalX(xCoords[0]);
     int py1 = iStage.localToGlobalY(yCoords[0]);
     int px2 = iStage.localToGlobalX(xCoords[1]);
@@ -356,24 +417,24 @@ class EllipseObj extends DrawingObj {
       int yDist = int(float(py2-py1)/2*0.552);
       
       beginShape();
-      for (int i=0; i<=detail; i++) {
-        float px = bezierPoint(px1, px1, mx-xDist, mx, i/detail);
-        float py = bezierPoint(my, my-yDist, py1, py1, i/detail);
+      for (int i=0; i<=quarterDetail; i++) {
+        float px = bezierPoint(px1, px1, mx-xDist, mx, i/quarterDetail);
+        float py = bezierPoint(my, my-yDist, py1, py1, i/quarterDetail);
         vertex(px, py);
       }
-      for (int i=0; i<=detail; i++) {
-        float px = bezierPoint(mx, mx+xDist, px2, px2, i/detail);
-        float py = bezierPoint(py1, py1, my-yDist, my, i/detail);
+      for (int i=0; i<=quarterDetail; i++) {
+        float px = bezierPoint(mx, mx+xDist, px2, px2, i/quarterDetail);
+        float py = bezierPoint(py1, py1, my-yDist, my, i/quarterDetail);
         vertex(px, py);
       }
-      for (int i=0; i<=detail; i++) {
-        float px = bezierPoint(px2, px2, mx+xDist, mx, i/detail);
-        float py = bezierPoint(my, my+yDist, py2, py2, i/detail);
+      for (int i=0; i<=quarterDetail; i++) {
+        float px = bezierPoint(px2, px2, mx+xDist, mx, i/quarterDetail);
+        float py = bezierPoint(my, my+yDist, py2, py2, i/quarterDetail);
         vertex(px, py);
       }
-      for (int i=0; i<=detail; i++) {
-        float px = bezierPoint(mx, mx-xDist, px1, px1, i/detail);
-        float py = bezierPoint(py2, py2, my+yDist, my, i/detail);
+      for (int i=0; i<=quarterDetail; i++) {
+        float px = bezierPoint(mx, mx-xDist, px1, px1, i/quarterDetail);
+        float py = bezierPoint(py2, py2, my+yDist, my, i/quarterDetail);
         vertex(px, py);
       }
       endShape();
@@ -382,6 +443,7 @@ class EllipseObj extends DrawingObj {
   }
   
   void makeCommands() {
+    float quarterDetail = round(float(detail)/4);
     float px1 = xCoords[0];
     float py1 = yCoords[0];
     float px2 = xCoords[1];
@@ -393,24 +455,24 @@ class EllipseObj extends DrawingObj {
     addCommand(new SpeedCommand(baseMoveSpeed));
     addCommand(new MoveCommand(px1, my, false));
     addCommand(new SpeedCommand(speed));
-    for (int i=1; i<=detail; i++) {
-      float dx = bezierPoint(px1, px1, mx-xDist, mx, i/detail);
-      float dy = bezierPoint(my, my-yDist, py1, py1, i/detail);
+    for (int i=1; i<=quarterDetail; i++) {
+      float dx = bezierPoint(px1, px1, mx-xDist, mx, i/quarterDetail);
+      float dy = bezierPoint(my, my-yDist, py1, py1, i/quarterDetail);
       addCommand(new MoveCommand(dx, dy, true));
     }
-    for (int i=0; i<=detail; i++) {
-      float dx = bezierPoint(mx, mx+xDist, px2, px2, i/detail);
-      float dy = bezierPoint(py1, py1, my-yDist, my, i/detail);
+    for (int i=0; i<=quarterDetail; i++) {
+      float dx = bezierPoint(mx, mx+xDist, px2, px2, i/quarterDetail);
+      float dy = bezierPoint(py1, py1, my-yDist, my, i/quarterDetail);
       addCommand(new MoveCommand(dx, dy, true));
     }
-    for (int i=0; i<=detail; i++) {
-      float dx = bezierPoint(px2, px2, mx+xDist, mx, i/detail);
-      float dy = bezierPoint(my, my+yDist, py2, py2, i/detail);
+    for (int i=0; i<=quarterDetail; i++) {
+      float dx = bezierPoint(px2, px2, mx+xDist, mx, i/quarterDetail);
+      float dy = bezierPoint(my, my+yDist, py2, py2, i/quarterDetail);
       addCommand(new MoveCommand(dx, dy, true));
     }
-    for (int i=0; i<=detail; i++) {
-      float dx = bezierPoint(mx, mx-xDist, px1, px1, i/detail);
-      float dy = bezierPoint(py2, py2, my+yDist, my, i/detail);
+    for (int i=0; i<=quarterDetail; i++) {
+      float dx = bezierPoint(mx, mx-xDist, px1, px1, i/quarterDetail);
+      float dy = bezierPoint(py2, py2, my+yDist, my, i/quarterDetail);
       addCommand(new MoveCommand(dx, dy, true));
     }
   }
@@ -428,10 +490,43 @@ class FillObj extends DrawingObj {
  
   FillObj(float is, boolean iHor, boolean iVer, float isp, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
-    speed = is;
+    setSpeed(is);
     horizontal = iHor;
     vertical = iVer;
-    spacing = isp;
+    setSpacing(isp);
+  }
+  
+  void setSpeed(float is) {
+    if (is > 0) {
+      speed = is;
+    } else {
+      speed = 0;
+    }
+  }
+  
+  void setSpacing(float isp) {
+    if (isp > 0) {
+      spacing = isp;
+    } else {
+      spacing = 0;
+    }
+  }
+  
+  void makeLines() {
+    float lx = minX();
+    float ly = minY();
+    float hx = maxX();
+    float hy = maxY();
+    if (horizontal) {
+      for (float i=ly; i<=hy; i+=spacing) {
+        line(lx, i, hx, i);
+      }
+    }
+    if (vertical) {
+      for (float i=lx; i<=hx; i+=spacing) {
+        line(i, ly, i, hy);
+      }
+    }
   }
   
   void display(Stage iStage, boolean simple) {
@@ -527,6 +622,11 @@ class GroupObj extends DrawingObj {
   
   void insert(ArrayList<DrawingObj> iObjs) {
     objs.addAll(iObjs);
+    getBounds();
+  }
+  
+  void remove(DrawingObj iObj) {
+    objs.remove(iObj);
     getBounds();
   }
   
@@ -632,51 +732,27 @@ class GroupObj extends DrawingObj {
     delete();
   }
   
-  void setTime(float time) {
+  void setTime(float it) {
     for (int i=0; i<objs.size(); i++) {
-      DrawingObj currObj = objs.get(i);
-      if (currObj instanceof PointObj) {
-        PointObj pointObj = (PointObj)currObj;
-        pointObj.time = time;
-      } else
-      if (currObj instanceof GroupObj) {
-        GroupObj groupObj = (GroupObj)currObj;
-        groupObj.setTime(time);
-      }
+      objs.get(i).setTime(it);
     }
   }
   
-  void setSpeed(float speed) {
+  void setSpeed(float is) {
     for (int i=0; i<objs.size(); i++) {
-      DrawingObj currObj = objs.get(i);
-      if (currObj instanceof LineObj) {
-        LineObj lineObj = (LineObj)currObj;
-        lineObj.speed = speed;
-      } else
-      if (currObj instanceof CurveObj) {
-        CurveObj curveObj = (CurveObj)currObj;
-        curveObj.speed = speed;
-      } else
-      if (currObj instanceof RectObj) {
-        RectObj rectObj = (RectObj)currObj;
-        rectObj.speed = speed;
-      } else
-      if (currObj instanceof EllipseObj) {
-        EllipseObj ellipseObj = (EllipseObj)currObj;
-        ellipseObj.speed = speed;
-      } else
-      if (currObj instanceof FillObj) {
-        FillObj fillObj = (FillObj)currObj;
-        fillObj.speed = speed;
-      } else
-      if (currObj instanceof ScanImage) {
-        ScanImage scanImage = (ScanImage)currObj;
-        scanImage.speed = speed;
-      } else
-      if (currObj instanceof GroupObj) {
-        GroupObj groupObj = (GroupObj)currObj;
-        groupObj.setSpeed(speed);
-      }
+      objs.get(i).setSpeed(is);
+    }
+  }
+  
+  void setDetail(int iDet) {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).setDetail(iDet);
+    }
+  }
+  
+  void setSpacing(float isp) {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).setSpacing(isp);
     }
   }
   
@@ -711,6 +787,13 @@ class Selection extends GroupObj {
     editTool.setVals(xCoords[0], yCoords[0], xCoords[1]-xCoords[0], yCoords[1]-yCoords[0]);
   }
   
+  void press() {
+    super.press();
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).press();
+    }
+  }
+  
   void release() {
     super.release();
     for (int i=0; i<objs.size(); i++) {
@@ -742,6 +825,14 @@ class Selection extends GroupObj {
   void insert(ArrayList<DrawingObj>  iObjs) {
     super.insert(iObjs);
     select();
+  }
+  
+  void remove(DrawingObj iObj) {
+    iObj.deselect();
+    super.remove(iObj);
+    if (objs.size() == 0) {
+      deselect();
+    }
   }
   
   void delete() {
@@ -858,7 +949,7 @@ class ScanImage extends GroupObj {
   
   ScanImage(float is, String iPath, boolean iHor, boolean iVer, float ix1, float iy1, float ix2, float iy2) {
     super();
-    speed = is;
+    setSpeed(is);
     path = iPath;
     img = loadImage(path);
     horizontal = iHor;
@@ -867,7 +958,16 @@ class ScanImage extends GroupObj {
     y1 = iy1;
     x2 = ix2;
     y2 = iy2;
-    addLines();
+    makeLines();
+  }
+  
+  void setSpeed(float is) {
+    super.setSpeed(is);
+    if (is > 0) {
+      speed = is;
+    } else {
+      speed = 0;
+    }
   }
   
   boolean isBlack(int ip) {
@@ -878,7 +978,7 @@ class ScanImage extends GroupObj {
     }
   }
   
-  void addLines() {
+  void makeLines() {
     float w = x2-x1;
     float h = y2-y1;
     int imgH = img.height;

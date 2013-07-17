@@ -1,7 +1,6 @@
 class Tool {
   ArrayList<Interface> chooser;
   Clickable button;
-  boolean beginPress = false;
   
   Tool() {
     chooser = new ArrayList<Interface>();
@@ -20,46 +19,14 @@ class Tool {
     button.release();  
   }
   
-  void press() {
-    if (button.over()) {
-      activate();
-    } else
-    if (miniStage.mouseOver() == false) {
-      if (currentTool == this && mainStage.mouseOver()) {
-        beginPress = true;
-        stagePress();
-      }
-    }
-  }
+  void press() {}
   
-  void drag() {
-    if (beginPress) {
-      if (currentTool == this) {
-        stageDrag();
-      }
-    }
-  }
+  void drag() {}
   
-  void release() {
-    if (beginPress) {
-      if (currentTool == this) {
-        stageRelease();
-      }
-    }
-    beginPress = false;
-  }
+  void release() {}
   
-  void keyPress() {
-  }
+  void keyPress(){}
   
-  void stagePress() {
-  }
-  
-  void stageDrag() {
-  }
-  
-  void stageRelease() {
-  }
 }
 
 class MoveTool extends Tool {
@@ -98,11 +65,14 @@ class MoveTool extends Tool {
       }
   }
   
+  void press() {
+    if (objSelection.selected) {
+      objSelection.deselect();
+    }
+  }
+  
   void keyPress() {
-    speedText.type();
     speedSlider.setVal(speedText.val);
-    xText.type();
-    yText.type();
   }
   
   class MoveButton extends Clickable {
@@ -166,7 +136,7 @@ class PointTool extends Tool {
     super();
     button = new PointButton();
     
-    timeText = new TextBox(0, 0, 120, 24, "Time (s): ", 0, new Create());
+    timeText = new TextBox(0, 0, 120, 24, "Time (s): ", 0, new SetTime());
     timeSlider = new Slider(0, 0, 159, 24, maxTime, "Time", "%.1f", timeText);
     shutButton = new TextButton(0, 0, 0, 24, "SHUTTER ON", new SetShut());
     xText = new TextBox(0, 0, 100, 24, "x: ", 0, new Create());
@@ -183,13 +153,16 @@ class PointTool extends Tool {
     shutButton.basecolor = color(190);
   }
   
-  void stagePress() {
+  void press() {
+    if (objSelection.selected) {
+      objSelection.deselect();
+    }
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw = new PointObj(timeText.val, shut, localX, localY);
   }
   
-  void stageDrag() {
+  void drag() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[0] = localX;
@@ -197,7 +170,7 @@ class PointTool extends Tool {
     currentDraw.updatePos();
   }
   
-  void stageRelease() {
+  void release() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[0] = localX;
@@ -207,10 +180,7 @@ class PointTool extends Tool {
   }
   
   void keyPress() {
-    timeText.type();
     timeSlider.setVal(timeText.val);
-    xText.type();
-    yText.type();
   }
   
   class PointButton extends Clickable {
@@ -239,6 +209,13 @@ class PointTool extends Tool {
     }
   }
   
+  class SetTime implements Action {
+    void run() {
+      float time = timeText.val;
+      objSelection.setTime(time);
+    }
+  }
+  
   class Create implements Action {
     void run() {
       drawingList.add(new PointObj(timeText.val, shut, xText.val, yText.val));
@@ -261,7 +238,7 @@ class LineTool extends Tool {
     super();
     button = new LineButton();
     
-    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new Create());
+    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new SetSpeed());
     speedSlider = new Slider(0, 0, 166, 24, maxSpeed, "Speed", "%.0f", speedText);
     x1Text = new TextBox(0, 0, 100, 24, "x1: ", 0, new Create());
     y1Text = new TextBox(0, 0, 100, 24, "y1: ", 0, new Create());
@@ -278,13 +255,16 @@ class LineTool extends Tool {
     chooser.add(createButton);
   }
   
-  void stagePress() {
+  void press() {
+    if (objSelection.selected) {
+      objSelection.deselect();
+    }
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw = new LineObj(speedText.val, localX, localY, localX, localY);
   }
   
-  void stageDrag() {
+  void drag() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[1] = localX;
@@ -292,7 +272,7 @@ class LineTool extends Tool {
     currentDraw.updatePos();
   }
   
-  void stageRelease() {
+  void release() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[1] = localX;
@@ -302,12 +282,7 @@ class LineTool extends Tool {
   }
   
   void keyPress() {
-    speedText.type();
     speedSlider.setVal(speedText.val);
-    x1Text.type();
-    y1Text.type();
-    x2Text.type();
-    y2Text.type();
   }
   
   class LineButton extends Clickable {
@@ -318,6 +293,13 @@ class LineTool extends Tool {
     void display () {
       super.display();
       line(x+3, y+h-3, x+21, y+3);
+    }
+  }
+  
+  class SetSpeed implements Action {
+    void run() {
+      float speed = speedText.val;
+      objSelection.setSpeed(speed);
     }
   }
   
@@ -344,9 +326,9 @@ class CurveTool extends Tool {
     super();
     button = new CurveButton();
     
-    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new Create());
+    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new SetSpeed());
     speedSlider = new Slider(0, 0, 166, 24, maxSpeed, "Speed", "%.0f", speedText);
-    detailText = new TextBox(0, 0, 100, 24, "Detail: ", 0, new Create());
+    detailText = new TextBox(0, 0, 100, 24, "Detail: ", 0, new SetDetail());
     x1Text = new TextBox(0, 0, 100, 24, "x1: ", 0, new Create());
     y1Text = new TextBox(0, 0, 100, 24, "y1: ", 0, new Create());
     x2Text = new TextBox(0, 0, 100, 24, "x2: ", 0, new Create());
@@ -365,13 +347,16 @@ class CurveTool extends Tool {
     detailText.setVal(12);
   }
   
-  void stagePress() {
+  void press() {
+    if (objSelection.selected) {
+      objSelection.deselect();
+    }
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw = new CurveObj(speedText.val, int(detailText.val), localX, localY, localX, localY);
   }
   
-  void stageDrag() {
+  void drag() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[1] = localX;
@@ -383,7 +368,7 @@ class CurveTool extends Tool {
     currentDraw.updatePos();
   }
   
-  void stageRelease() {
+  void release() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[1] = localX;
@@ -397,13 +382,7 @@ class CurveTool extends Tool {
   }
   
   void keyPress() {
-    speedText.type();
     speedSlider.setVal(speedText.val);
-    detailText.type();
-    x1Text.type();
-    y1Text.type();
-    x2Text.type();
-    y2Text.type();
   }
   
   class CurveButton extends Clickable {
@@ -414,6 +393,20 @@ class CurveTool extends Tool {
     void display () {
       super.display();
       bezier(x+3, y+h-3, x+21, y+h-3, x+3, y+3, x+21, y+3);
+    }
+  }
+  
+  class SetSpeed implements Action {
+    void run() {
+      float speed = speedText.val;
+      objSelection.setSpeed(speed);
+    }
+  }
+  
+  class SetDetail implements Action {
+    void run() {
+      int detail = int(detailText.val);
+      objSelection.setDetail(detail);
     }
   }
   
@@ -439,7 +432,7 @@ class RectTool extends Tool {
     super();
     button = new RectButton();
     
-    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new Create());
+    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new SetSpeed());
     speedSlider = new Slider(0, 0, 166, 24, maxSpeed, "Speed", "%.0f", speedText);
     xText = new TextBox(0, 0, 100, 24, "x: ", 0, new Create());
     yText = new TextBox(0, 0, 100, 24, "y: ", 0, new Create());
@@ -456,13 +449,16 @@ class RectTool extends Tool {
     chooser.add(createButton);
   }
   
-  void stagePress() {
+  void press() {
+    if (objSelection.selected) {
+      objSelection.deselect();
+    }
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw = new RectObj(speedText.val, localX, localY, localX, localY);
   }
   
-  void stageDrag() {
+  void drag() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[1] = localX;
@@ -470,7 +466,7 @@ class RectTool extends Tool {
     currentDraw.updatePos();
   }
   
-  void stageRelease() {
+  void release() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[1] = localX;
@@ -480,12 +476,7 @@ class RectTool extends Tool {
   }
   
   void keyPress() {
-    speedText.type();
     speedSlider.setVal(speedText.val);
-    xText.type();
-    yText.type();
-    wText.type();
-    hText.type();
   }
   
   class RectButton extends Clickable { 
@@ -496,6 +487,13 @@ class RectTool extends Tool {
     void display () {
       super.display();
       rect(x+3, y+3, 18, 18);
+    }
+  }
+  
+  class SetSpeed implements Action {
+    void run() {
+      float speed = speedText.val;
+      objSelection.setSpeed(speed);
     }
   }
   
@@ -524,9 +522,9 @@ class EllipseTool extends Tool {
     super();
     button = new EllipseButton();
     
-    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new Create());
+    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new SetSpeed());
     speedSlider = new Slider(0, 0, 166, 24, maxSpeed, "Speed", "%.0f", speedText);
-    detailText = new TextBox(0, 0, 100, 24, "Detail: ", 0, new Create());
+    detailText = new TextBox(0, 0, 100, 24, "Detail: ", 0, new SetDetail());
     xText = new TextBox(0, 0, 100, 24, "x: ", 0, new Create());
     yText = new TextBox(0, 0, 100, 24, "y: ", 0, new Create());
     wText = new TextBox(0, 0, 100, 24, "w: ", 0, new Create());
@@ -542,16 +540,19 @@ class EllipseTool extends Tool {
     chooser.add(hText);
     chooser.add(createButton);
     
-    detailText.setVal(3);
+    detailText.setVal(12);
   }
   
-  void stagePress() {
+  void press() {
+    if (objSelection.selected) {
+      objSelection.deselect();
+    }
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw = new EllipseObj(speedText.val, int(detailText.val), localX, localY, localX, localY);
   }
   
-  void stageDrag() {
+  void drag() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[1] = localX;
@@ -559,7 +560,7 @@ class EllipseTool extends Tool {
     currentDraw.updatePos();
   }
   
-  void stageRelease() {
+  void release() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[1] = localX;
@@ -569,13 +570,7 @@ class EllipseTool extends Tool {
   }
   
   void keyPress() {
-    speedText.type();
     speedSlider.setVal(speedText.val);
-    detailText.type();
-    xText.type();
-    yText.type();
-    wText.type();
-    hText.type();
   }
   
   class EllipseButton extends Clickable {
@@ -586,6 +581,20 @@ class EllipseTool extends Tool {
     void display () {
       super.display();
       ellipse(x+12, y+12, 18, 18);
+    }
+  }
+  
+  class SetSpeed implements Action {
+    void run() {
+      float speed = speedText.val;
+      objSelection.setSpeed(speed);
+    }
+  }
+  
+  class SetDetail implements Action {
+    void run() {
+      int detail = int(detailText.val);
+      objSelection.setDetail(detail);
     }
   }
   
@@ -618,11 +627,11 @@ class FillTool extends Tool {
     super();
     button = new FillButton();
     
-    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new Create());
+    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new SetSpeed());
     speedSlider = new Slider(0, 0, 166, 24, maxSpeed, "Speed", "%.0f", speedText);
     hButton = new TextButton(0, 0, 0, 24, "H", new SetH());
     vButton = new TextButton(0, 0, 0, 24, "V", new SetV());
-    spacingText = new TextBox(0, 0, 120, 24, "Spacing: ", 0, new Create());
+    spacingText = new TextBox(0, 0, 120, 24, "Spacing: ", 0, new SetSpacing());
     xText = new TextBox(0, 0, 100, 24, "x: ", 0, new Create());
     yText = new TextBox(0, 0, 100, 24, "y: ", 0, new Create());
     wText = new TextBox(0, 0, 100, 24, "w: ", 0, new Create());
@@ -644,13 +653,16 @@ class FillTool extends Tool {
     spacingText.setVal(10);
   }
   
-  void stagePress() {
+  void press() {
+   if (objSelection.selected) {
+      objSelection.deselect();
+    }
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw = new FillObj(speedText.val, horizontal, vertical, spacingText.val, localX, localY, localX, localY);
   }
   
-  void stageDrag() {
+  void drag() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[1] = localX;
@@ -658,7 +670,7 @@ class FillTool extends Tool {
     currentDraw.updatePos();
   }
   
-  void stageRelease() {
+  void release() {
     float localX = toGrid(mainStage.globalToLocalX(mouseX));
     float localY = toGrid(mainStage.globalToLocalY(mouseY));
     currentDraw.xCoords[1] = localX;
@@ -668,13 +680,7 @@ class FillTool extends Tool {
   }
   
   void keyPress() {
-    speedText.type();
     speedSlider.setVal(speedText.val);
-    spacingText.type();
-    xText.type();
-    yText.type();
-    wText.type();
-    hText.type();
   }
   
   class FillButton extends Clickable {
@@ -690,6 +696,13 @@ class FillTool extends Tool {
       line(x+4, y+13, x+20, y+13);
       line(x+4, y+16, x+20, y+16);
       line(x+4, y+19, x+20, y+19);
+    }
+  }
+  
+  class SetSpeed implements Action {
+    void run() {
+      float speed = speedText.val;
+      objSelection.setSpeed(speed);
     }
   }
   
@@ -714,6 +727,13 @@ class FillTool extends Tool {
         vertical = false;
         vButton.basecolor = color(230);
       }
+    }
+  }
+  
+  class SetSpacing implements Action {
+    void run() {
+      float spacing = spacingText.val;
+      objSelection.setSpacing(spacing);
     }
   }
   
@@ -745,7 +765,7 @@ public class ScanImageTool extends Tool {
     super();
     button = new ScanImageButton();
     
-    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, null);
+    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new SetSpeed());
     speedSlider = new Slider(0, 0, 166, 24, maxSpeed, "Speed", "%.0f", speedText);
     hButton = new TextButton(0, 0, 0, 24, "H", new SetH());
     vButton = new TextButton(0, 0, 0, 24, "V", new SetV());
@@ -768,13 +788,14 @@ public class ScanImageTool extends Tool {
     hButton.basecolor = color(190);
   }
   
+  void press() {
+    if (objSelection.selected) {
+      objSelection.deselect();
+    }
+  }
+  
   void keyPress() {
-    speedText.type();
     speedSlider.setVal(speedText.val);
-    xText.type();
-    yText.type();
-    wText.type();
-    hText.type();
   }
   
   class ScanImageButton extends Clickable { 
@@ -803,6 +824,13 @@ public class ScanImageTool extends Tool {
       float x2 = xText.val+wText.val;
       float y2 = yText.val+hText.val;
       drawingList.add(new ScanImage(speed, file.getPath(), horizontal, vertical, xText.val, yText.val, x2, y2));
+    }
+  }
+  
+  class SetSpeed implements Action {
+    void run() {
+      float speed = speedText.val;
+      objSelection.setSpeed(speed);
     }
   }
   
@@ -869,11 +897,10 @@ public class BGImageTool extends Tool {
     chooser.add(deleteBGButton);
   }
   
-  void keyPress() {
-    xText.type();
-    yText.type();
-    wText.type();
-    hText.type();
+  void press() {
+    if (objSelection.selected) {
+      objSelection.deselect();
+    }
   }
   
   class BGImageButton extends Clickable { 
@@ -950,17 +977,11 @@ class ZoomInTool extends Tool {
     setVals(mainStage.lowX+mainStage.rangeX/2, mainStage.lowY+mainStage.rangeY/2, mainStage.rangeX);
   }
   
-  void stagePress() {
+  void press() {
     float localX = mainStage.globalToLocalX(mouseX);
     float localY = mainStage.globalToLocalY(mouseY);
     mainStage.setZoom(localX, localY, 0.5);
     setVals(mainStage.lowX+mainStage.rangeX/2, mainStage.lowY+mainStage.rangeY/2, mainStage.rangeX);
-  }
-  
-  void keyPress() {
-    midXText.type();
-    midYText.type();
-    rangeXText.type();
   }
   
   void setVals(float mx, float my, float rx) {
@@ -1016,17 +1037,11 @@ class ZoomOutTool extends Tool {
     setVals(mainStage.lowX+mainStage.rangeX/2, mainStage.lowY+mainStage.rangeY/2, mainStage.rangeX);
   }
   
-  void stagePress() {
+  void press() {
     float localX = mainStage.globalToLocalX(mouseX);
     float localY = mainStage.globalToLocalY(mouseY);
     mainStage.setZoom(localX, localY, 2);
     setVals(mainStage.lowX+mainStage.rangeX/2, mainStage.lowY+mainStage.rangeY/2, mainStage.rangeX);
-  }
-  
-  void keyPress() {
-    midXText.type();
-    midYText.type();
-    rangeXText.type();
   }
   
   void setVals(float mx, float my, float rx) {
@@ -1066,8 +1081,6 @@ class EditTool extends Tool {
   TextBox wText;
   TextBox hText;
   TextButton setButton;
-  TextBox speedText;
-  TextBox timeText;
   TextButton groupButton;
   TextButton ungroupButton;
   TextButton copyButton;
@@ -1086,8 +1099,6 @@ class EditTool extends Tool {
     wText = new TextBox(0, 0, 100, 24, "w: ", 0, new Set());
     hText = new TextBox(0, 0, 100, 24, "h: ", 0, new Set());
     setButton = new TextButton(0, 0, 0, 24, "SET", new Set());
-    speedText = new TextBox(0, 0, 160, 24, "Speed (um/s): ", 0, new SetSpeed());
-    timeText = new TextBox(0, 0, 120, 24, "Time (s): ", 0, new SetTime());
     groupButton = new TextButton(0, 0, 0, 24, "GROUP", new Group());
     ungroupButton = new TextButton(0, 0, 0, 24, "UNGROUP", new Ungroup());
     copyButton = new TextButton(0, 0, 0, 24, "COPY", new Copy());
@@ -1099,8 +1110,6 @@ class EditTool extends Tool {
     chooser.add(wText);
     chooser.add(hText);
     chooser.add(setButton);
-    chooser.add(speedText);
-    chooser.add(timeText);
     chooser.add(groupButton);
     chooser.add(ungroupButton);
     chooser.add(copyButton);
@@ -1108,56 +1117,31 @@ class EditTool extends Tool {
     chooser.add(deleteButton);
   }
   
-  void deactivate() {
-    super.deactivate();
-    objSelection.deselect();
-  }
-  
-  void stagePress() {
+  void press() {
     objSelection.press();
-    for (int i=0; i<objSelection.objs.size(); i++) {
-      objSelection.objs.get(i).press();
-    }
-    if (dragging == false) {
+    if (!dragging) {
+      if (!(keyPressed && keyCode == SHIFT)) {
+        objSelection.deselect();
+      }
       beginSelectX = mainStage.globalToLocalX(mouseX);
       beginSelectY = mainStage.globalToLocalY(mouseY);
       selecting = true;
     }
   }
   
-  void stageRelease() {
-    objSelection.release();
+  void release() {
     if (selecting) {
-      if (!(keyPressed && keyCode == SHIFT)) {
-        objSelection.deselect();
-      }
-      ArrayList<DrawingObj> tempObjs = new ArrayList<DrawingObj>();
       for (int i=0; i<drawingList.size(); i++) {
         DrawingObj currObj = drawingList.get(i);
         if (currObj.inBounds(beginSelectX, beginSelectY, mainStage.globalToLocalX(mouseX), mainStage.globalToLocalY(mouseY))) {
-          if (currObj.selected == false) {
-            tempObjs.add(currObj);
+          if (currObj.selected) {
+            objSelection.remove(currObj);
+          } else {
+            objSelection.insert(currObj);
           }
         }
       }
-      if (tempObjs.size() > 0) {
-        objSelection.insert(tempObjs);
-      }
       selecting = false;
-    }
-  }
-  
-  void keyPress() {
-    xText.type();
-    yText.type();
-    wText.type();
-    hText.type();
-    speedText.type();
-    timeText.type();
-    if (!(xText.selected || yText.selected || wText.selected || hText.selected || speedText.selected || timeText.selected)) {
-      if (keyCode == BACKSPACE) {
-        objSelection.delete();
-      }
     }
   }
   
@@ -1202,20 +1186,6 @@ class EditTool extends Tool {
       float x2 = xText.val + wText.val;
       float y2 = yText.val + hText.val;
       objSelection.setPos(new float[]{xText.val, x2}, new float[]{yText.val, y2});
-    }
-  }
-  
-  class SetTime implements Action {
-    void run() {
-      float time = timeText.val;
-      objSelection.setTime(time);
-    }
-  }
-  
-  class SetSpeed implements Action {
-    void run() {
-      float speed = speedText.val;
-      objSelection.setSpeed(speed);
     }
   }
   
@@ -1277,10 +1247,10 @@ class SettingsTool extends Tool {
     miniRangeXText.setVal(miniStageRangeX);
   }
   
-  void keyPress() {
-    gridText.type();
-    baseMSText.type();
-    miniRangeXText.type();
+  void press() {
+    if (objSelection.selected) {
+      objSelection.deselect();
+    }
   }
   
   class Set implements Action {
