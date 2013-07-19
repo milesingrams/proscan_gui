@@ -1,6 +1,6 @@
-class SaveAction implements Action {
+class NewAction implements Action {
   void run() {
-    selectOutput("Save File", "saveData");
+    selectOutput("Save Before Closing?", "newPage");
   }
 }
 
@@ -10,14 +10,29 @@ class LoadAction implements Action {
   }
 }
 
+class SaveAction implements Action {
+  void run() {
+    selectOutput("Save File", "saveData", saveFile);
+  }
+}
+
 class PosAction implements Action {
   void run() {
     addCommand(new PosCommand());
   }
 }
 
+class AbsZeroAction implements Action {
+  void run() {
+    miniWindow.lowX = scopeX;
+    miniWindow.lowY = scopeY;
+  }
+}
+
 class ZeroAction implements Action {
   void run() {
+    miniWindow.lowX -= scopeX;
+    miniWindow.lowY -= scopeY;
     addCommand(new TextCommand("Z", ""));
   }
 }
@@ -66,6 +81,21 @@ void setShutter(boolean mode) {
   }
 }
 
+void newPage(File file) {
+  saveData(file);
+  objSelection.deselect();
+  backgroundImage = null;
+  drawingList.clear();
+}
+
+void loadData(File file) {
+  if (file != null) {
+    objSelection.deselect();
+    drawingList = parseStrings(loadStrings(file.getPath()));
+    printToLog("Loaded File:\t"+file.getPath());
+  }
+}
+
 void saveData(File file) {
   if (file != null) {
     String[] strings = new String[drawingList.size()];
@@ -74,15 +104,16 @@ void saveData(File file) {
       strings[i] = currObj.toString();
     }
     saveStrings(file.getPath(), strings);
+    saveFile = file;
+    printToLog("Saved File:\t"+file.getPath());
   }
 }
 
-void loadData(File file) {
-  if (file != null) {
-    drawingList.clear();
-    objSelection.deselect();
-    drawingList = parseStrings(loadStrings(file.getPath()));
-  }
+void printToLog(String string) {
+  Date date = new Date();
+  String dateString = new SimpleDateFormat("h.mm.ss a").format(date);
+  logFile.println(dateString+"\t"+string);
+  logFile.flush();
 }
 
 ArrayList<DrawingObj> parseStrings(String[] strings) {
@@ -91,14 +122,16 @@ ArrayList<DrawingObj> parseStrings(String[] strings) {
   
   for (int i=0; i<strings.length; i++) {
     String[] vals = splitTokens(strings[i], " ");
-    if (vals[0].equals("GROUP")) {
-      groups.add(new GroupObj());
-    } else
-    if (vals[0].equals("ENDGROUP")) {
-        GroupObj lastGroup = groups.remove(groups.size()-1);
-        groups.get(groups.size()-1).insert(lastGroup);
-    } else {
-        groups.get(groups.size()-1).insert(parseVals(vals));
+    if (vals.length > 0) {
+      if (vals[0].equals("GROUP")) {
+        groups.add(new GroupObj());
+      } else
+      if (vals[0].equals("ENDGROUP")) {
+          GroupObj lastGroup = groups.remove(groups.size()-1);
+          groups.get(groups.size()-1).insert(lastGroup);
+      } else {
+          groups.get(groups.size()-1).insert(parseVals(vals));
+      }
     }
   }
   
@@ -107,14 +140,14 @@ ArrayList<DrawingObj> parseStrings(String[] strings) {
 
 DrawingObj parseVals(String[] vals) {
   if (vals[0].equals("POINT")) {
-    int time = parseInt(vals[1].trim());
+    float time = parseFloat(vals[1].trim());
     boolean shut = parseBoolean(vals[2].trim());
     float x = parseFloat(vals[3].trim());
     float y = parseFloat(vals[4].trim());
     return new PointObj(time, shut, x, y);
   } else
   if (vals[0].equals("LINE")) {
-    int speed = parseInt(vals[1].trim());
+    float speed = parseFloat(vals[1].trim());
     float x1 = parseFloat(vals[2].trim());
     float y1 = parseFloat(vals[3].trim());
     float x2 = parseFloat(vals[4].trim());
@@ -122,7 +155,7 @@ DrawingObj parseVals(String[] vals) {
     return new LineObj(speed, x1, y1, x2, y2);
   } else 
   if (vals[0].equals("CURVE")) {
-    int speed = parseInt(vals[1].trim());
+    float speed = parseFloat(vals[1].trim());
     int detail = parseInt(vals[2].trim());
     float x1 = parseFloat(vals[3].trim());
     float y1 = parseFloat(vals[4].trim());
@@ -135,7 +168,7 @@ DrawingObj parseVals(String[] vals) {
     return new CurveObj(speed, detail, x1, y1, x2, y2, cx1, cy1, cx2, cy2);
   } else
   if (vals[0].equals("RECT")) {
-    int speed = parseInt(vals[1].trim());
+    float speed = parseFloat(vals[1].trim());
     float x1 = parseFloat(vals[2].trim());
     float y1 = parseFloat(vals[3].trim());
     float x2 = parseFloat(vals[4].trim());
@@ -143,7 +176,7 @@ DrawingObj parseVals(String[] vals) {
     return new RectObj(speed, x1, y1, x2, y2);
   } else
   if (vals[0].equals("ELLIPSE")) {
-    int speed = parseInt(vals[1].trim());
+    float speed = parseFloat(vals[1].trim());
     int detail = parseInt(vals[2].trim());
     float x1 = parseFloat(vals[3].trim());
     float y1 = parseFloat(vals[4].trim());
@@ -152,7 +185,7 @@ DrawingObj parseVals(String[] vals) {
     return new EllipseObj(speed, detail, x1, y1, x2, y2);
   } else 
   if (vals[0].equals("FILL")) {
-    int speed = parseInt(vals[1].trim());
+    float speed = parseFloat(vals[1].trim());
     boolean horizontal = parseBoolean(vals[2].trim());
     boolean vertical = parseBoolean(vals[3].trim());
     float spacing = parseFloat(vals[4].trim());
@@ -161,6 +194,17 @@ DrawingObj parseVals(String[] vals) {
     float x2 = parseFloat(vals[7].trim());
     float y2 = parseFloat(vals[8].trim());
     return new FillObj(speed, horizontal, vertical, spacing, x1, y1, x2, y2);
+  } else 
+  if (vals[0].equals("SCANIMAGE")) {
+    float speed = parseFloat(vals[1].trim());
+    String path = vals[2].trim();
+    boolean horizontal = parseBoolean(vals[3].trim());
+    boolean vertical = parseBoolean(vals[4].trim());
+    float x1 = parseFloat(vals[5].trim());
+    float y1 = parseFloat(vals[6].trim());
+    float x2 = parseFloat(vals[7].trim());
+    float y2 = parseFloat(vals[8].trim());
+    return new ScanImage(speed, path, horizontal, vertical, x1, y1, x2, y2);
   } else {
     return new DrawingObj(new float[]{}, new float[]{});
   }
@@ -179,6 +223,47 @@ boolean inRegion(float x, float y, float x1, float y1, float x2, float y2) {
   return false;
 }
 
+float timeToCompletion() {
+  float time = 0;
+  float speed = 0;
+  float currX = scopeX;
+  float currY = scopeY;
+  for (int i=0; i<commandList.size(); i++) {
+    Command currCommand = commandList.get(i);
+    if (currCommand instanceof SpeedCommand) {
+      SpeedCommand speedCommand = (SpeedCommand)currCommand;
+      speed = speedCommand.speed;
+    } else
+    if (currCommand instanceof MoveCommand) {
+      MoveCommand moveCommand = (MoveCommand)currCommand;
+      float moveDist = sqrt(pow(moveCommand.destX-currX, 2)+pow(moveCommand.destY-currY, 2));
+      if (speed > 0) {
+        time += moveDist/speed;
+      }
+    } else
+    if (currCommand instanceof ShutterCommand) {
+      ShutterCommand shutterCommand = (ShutterCommand)currCommand;
+      time += shutterCommand.time;
+    }
+  }
+  return time;
+}
+
+void setLastState() {
+  lastState = "";
+  for (int i=0; i<drawingList.size(); i++) {
+    lastState += drawingList.get(i).toString()+"\n";
+  }
+}
+
+void restoreLastState() {
+  
+  objSelection.deselect();
+  String[] strings = lastState.split("\n");
+  setLastState();
+  drawingList = parseStrings(strings);
+}
+
 float toGrid(float ix) {
   return round(ix/gridSize)*gridSize;
 }
@@ -186,4 +271,12 @@ float toGrid(float ix) {
 // Gives an intermediate between red and blue
 color redblueColor (float x, float maxX) {
   return lerpColor(color(0, 0, 255), color(255, 0, 0), x/maxX);
+}
+
+boolean checkKey(int k)
+{
+  if (keys.length >= k) {
+    return keys[k];  
+  }
+  return false;
 }

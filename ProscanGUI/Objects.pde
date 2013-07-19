@@ -25,20 +25,19 @@ class DrawingObj {
     }
     dragButton = new Clickable(0, 0, buttonSize, buttonSize, true);
     dragButton.visible = false;
-    updatePos();
   }
   
   void update() {
     for (int i=0; i<numCoords; i++) {
       if (vertexButtons[i].pressed) {
-        xCoords[i] = toGrid(mainStage.localMouseX());
-        yCoords[i] = toGrid(mainStage.localMouseY());
+        xCoords[i] = toGrid(mainWindow.localMouseX());
+        yCoords[i] = toGrid(mainWindow.localMouseY());
         updatePos();
       }
     }
     if (dragButton.pressed) {
-      float minX = toGrid(mainStage.localMouseX()-(maxX()-minX())/2);
-      float minY = toGrid(mainStage.localMouseY()-(maxY()-minY())/2);
+      float minX = toGrid(mainWindow.localMouseX()-(maxX()-minX())/2);
+      float minY = toGrid(mainWindow.localMouseY()-(maxY()-minY())/2);
       for (int i=0; i<numCoords; i++) {
         xCoords[i] = minX + relativeCoordsX[i];
         yCoords[i] = minY + relativeCoordsY[i];
@@ -49,11 +48,11 @@ class DrawingObj {
   
   void updatePos() {
     for (int i=0; i<numCoords; i++) {
-      vertexButtons[i].x = mainStage.localToGlobalX(xCoords[i])-buttonSize/2;
-      vertexButtons[i].y = mainStage.localToGlobalY(yCoords[i])-buttonSize/2;
+      vertexButtons[i].x = mainWindow.localToGlobalX(xCoords[i])-buttonSize/2;
+      vertexButtons[i].y = mainWindow.localToGlobalY(yCoords[i])-buttonSize/2;
     }
-    dragButton.x = mainStage.localToGlobalX(midX())-buttonSize/2;
-    dragButton.y = mainStage.localToGlobalY(midY())-buttonSize/2;
+    dragButton.x = mainWindow.localToGlobalX(midX())-buttonSize/2;
+    dragButton.y = mainWindow.localToGlobalY(midY())-buttonSize/2;
   }
   
   void setRelativeCoords() {
@@ -66,6 +65,14 @@ class DrawingObj {
   void setPos(float[] ixCoords, float[] iyCoords) {
     xCoords = ixCoords;
     yCoords = iyCoords;
+    updatePos();
+  }
+  
+  void translate(float ix, float iy) {
+    for (int i=0; i<numCoords; i++) {
+      xCoords[i] += ix;
+      yCoords[i] += iy;
+    }
     updatePos();
   }
   
@@ -105,6 +112,7 @@ class DrawingObj {
   }
   
   void delete() {
+    setLastState();
     for (int i=0; i<drawingList.size(); i++) {
       drawingList.remove(this);
     }
@@ -158,7 +166,7 @@ class DrawingObj {
   void setSpeed(float is){}
   void setDetail(int iDet){}
   void setSpacing(float isp){}
-  void display(Stage iStage, boolean simple){}
+  void display(DrawingWindow iWindow, boolean simple){}
   void makeCommands(){}
 }
 
@@ -170,6 +178,7 @@ class PointObj extends DrawingObj {
     super(new float[]{ix}, new float[]{iy});
     setTime(it);
     shut = iShut;
+    updatePos();
   }
   
   void setTime(float it) {
@@ -180,10 +189,10 @@ class PointObj extends DrawingObj {
     }
   }
  
-  void display(Stage iStage, boolean simple) {
+  void display(DrawingWindow iWindow, boolean simple) {
     update();
-    int px = iStage.localToGlobalX(xCoords[0]);
-    int py = iStage.localToGlobalY(yCoords[0]);
+    int px = iWindow.localToGlobalX(xCoords[0]);
+    int py = iWindow.localToGlobalY(yCoords[0]);
     fill(redblueColor(time, maxTime));
     if (simple) {
       noStroke();
@@ -212,6 +221,7 @@ class LineObj extends DrawingObj {
   LineObj(float is, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
     setSpeed(is);
+    updatePos();
   }
   
   void setSpeed(float is) {
@@ -222,12 +232,12 @@ class LineObj extends DrawingObj {
     }
   }
  
-  void display(Stage iStage, boolean simple) {
+  void display(DrawingWindow iWindow, boolean simple) {
     update();
-    int px1 = iStage.localToGlobalX(xCoords[0]);
-    int py1 = iStage.localToGlobalY(yCoords[0]);
-    int px2 = iStage.localToGlobalX(xCoords[1]);
-    int py2 = iStage.localToGlobalY(yCoords[1]);
+    int px1 = iWindow.localToGlobalX(xCoords[0]);
+    int py1 = iWindow.localToGlobalY(yCoords[0]);
+    int px2 = iWindow.localToGlobalX(xCoords[1]);
+    int py2 = iWindow.localToGlobalY(yCoords[1]);
     noFill();
     stroke(redblueColor(speed, maxSpeed));
     line(px1, py1, px2, py2);
@@ -250,18 +260,22 @@ class LineObj extends DrawingObj {
 
 class CurveObj extends DrawingObj {
   float speed;
-  float detail;
+  float detail = 0;
+  float[] bezierX;
+  float[] bezierY;
   
   CurveObj(float is, int iDet, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2, ix1+(ix2-ix1)*0.33, ix1+(ix2-ix1)*0.66}, new float[]{iy1, iy2, iy1+(iy2-iy1)*0.33, iy1+(iy2-iy1)*0.66});
     setSpeed(is);
     setDetail(iDet);
+    updatePos();
   }
   
-  CurveObj(float is, int iDet, float ix1, float iy1, float ix2, float iy2, float cx1, float cy1, float cx2, float cy2) {
-    super(new float[]{ix1, ix2, cx1, cx2}, new float[]{iy1, iy2, cy1, cy2});
+  CurveObj(float is, int iDet, float ix1, float iy1, float ix2, float iy2, float icx1, float icy1, float icx2, float icy2) {
+    super(new float[]{ix1, ix2, icx1, icx2}, new float[]{iy1, iy2, icy1, icy2});
     setSpeed(is);
     setDetail(iDet);
+    updatePos();
   }
   
   void setSpeed(float is) {
@@ -278,18 +292,45 @@ class CurveObj extends DrawingObj {
     } else {
       detail = 1;
     }
+    bezierX = new float[int(detail+1)];
+    bezierY = new float[int(detail+1)];
+    updatePos();
+  }
+  
+  void updatePos() {
+    super.updatePos();
+    for (int i=0; i<=int(detail); i++) {
+      bezierX[i] = bezierPoint(xCoords[0], xCoords[2], xCoords[3], xCoords[1], i/detail);
+      bezierY[i] = bezierPoint(yCoords[0], yCoords[2], yCoords[3], yCoords[1], i/detail); 
+    }
+  }
+  
+  float minX() {
+    return min(bezierX);
+  }
+  
+  float minY() {
+    return min(bezierY);
+  }
+  
+  float maxX() {
+    return max(bezierX);
+  }
+  
+  float maxY() {
+    return max(bezierY);
   }
  
-  void display(Stage iStage, boolean simple) {
+  void display(DrawingWindow iWindow, boolean simple) {
     update();
-    int px1 = iStage.localToGlobalX(xCoords[0]);
-    int py1 = iStage.localToGlobalY(yCoords[0]);
-    int px2 = iStage.localToGlobalX(xCoords[1]);
-    int py2 = iStage.localToGlobalY(yCoords[1]);
-    int cx1 = iStage.localToGlobalX(xCoords[2]);
-    int cy1 = iStage.localToGlobalY(yCoords[2]);
-    int cx2 = iStage.localToGlobalX(xCoords[3]);
-    int cy2 = iStage.localToGlobalY(yCoords[3]);
+    int px1 = iWindow.localToGlobalX(xCoords[0]);
+    int py1 = iWindow.localToGlobalY(yCoords[0]);
+    int px2 = iWindow.localToGlobalX(xCoords[1]);
+    int py2 = iWindow.localToGlobalY(yCoords[1]);
+    int cx1 = iWindow.localToGlobalX(xCoords[2]);
+    int cy1 = iWindow.localToGlobalY(yCoords[2]);
+    int cx2 = iWindow.localToGlobalX(xCoords[3]);
+    int cy2 = iWindow.localToGlobalY(yCoords[3]);
     
     if (simple) {
       noFill();
@@ -302,9 +343,9 @@ class CurveObj extends DrawingObj {
       line(px2, py2, cx2, cy2);
       stroke(redblueColor(speed, maxSpeed));
       beginShape();
-      for (int i=0; i<=detail; i++) {
-        float px = bezierPoint(px1, cx1, cx2, px2, i/detail);
-        float py = bezierPoint(py1, cy1, cy2, py2, i/detail); 
+      for (int i=0; i<=int(detail); i++) {
+        float px = iWindow.localToGlobalX(bezierX[i]);
+        float py = iWindow.localToGlobalY(bezierY[i]);
         vertex(px, py);
       }
       endShape();
@@ -316,10 +357,8 @@ class CurveObj extends DrawingObj {
     addCommand(new SpeedCommand(baseMoveSpeed));
     addCommand(new MoveCommand(xCoords[0], yCoords[0], false));
     addCommand(new SpeedCommand(speed));
-    for (int i=1; i<=detail; i++) {
-      float dx = bezierPoint(xCoords[0], xCoords[2], xCoords[3], xCoords[1], i/detail);
-      float dy = bezierPoint(yCoords[0], yCoords[2], yCoords[3], yCoords[1], i/detail); 
-      addCommand(new MoveCommand(dx, dy, true));
+    for (int i=1; i<=int(detail); i++) {
+      addCommand(new MoveCommand(bezierX[i], bezierY[i], true));
     }
   }
   
@@ -334,6 +373,7 @@ class RectObj extends DrawingObj {
   RectObj(float is, float ix1, float iy1, float ix2, float iy2) {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
     setSpeed(is);
+    updatePos();
   }
   
   void setSpeed(float is) {
@@ -344,12 +384,12 @@ class RectObj extends DrawingObj {
     }
   }
   
-  void display(Stage iStage, boolean simple) {
+  void display(DrawingWindow iWindow, boolean simple) {
     update();
-    int px1 = iStage.localToGlobalX(xCoords[0]);
-    int py1 = iStage.localToGlobalY(yCoords[0]);
-    int px2 = iStage.localToGlobalX(xCoords[1]);
-    int py2 = iStage.localToGlobalY(yCoords[1]);
+    int px1 = iWindow.localToGlobalX(xCoords[0]);
+    int py1 = iWindow.localToGlobalY(yCoords[0]);
+    int px2 = iWindow.localToGlobalX(xCoords[1]);
+    int py2 = iWindow.localToGlobalY(yCoords[1]);
     noFill();
     stroke(redblueColor(speed, maxSpeed));
     rect(px1, py1, px2-px1, py2-py1);
@@ -381,6 +421,7 @@ class EllipseObj extends DrawingObj {
     super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
     setSpeed(is);
     setDetail(iDet);
+    updatePos();
   }
   
   void setSpeed(float is) {
@@ -399,15 +440,15 @@ class EllipseObj extends DrawingObj {
     }
   }
   
-  void display(Stage iStage, boolean simple) {
+  void display(DrawingWindow iWindow, boolean simple) {
     update();
     float quarterDetail = round(float(detail)/4);
-    int px1 = iStage.localToGlobalX(xCoords[0]);
-    int py1 = iStage.localToGlobalY(yCoords[0]);
-    int px2 = iStage.localToGlobalX(xCoords[1]);
-    int py2 = iStage.localToGlobalY(yCoords[1]);
-    int mx = int(iStage.localToGlobalX(midX()));
-    int my = int(iStage.localToGlobalY(midY()));
+    int px1 = iWindow.localToGlobalX(xCoords[0]);
+    int py1 = iWindow.localToGlobalY(yCoords[0]);
+    int px2 = iWindow.localToGlobalX(xCoords[1]);
+    int py2 = iWindow.localToGlobalY(yCoords[1]);
+    int mx = int(iWindow.localToGlobalX(midX()));
+    int my = int(iWindow.localToGlobalY(midY()));
     noFill();
     stroke(redblueColor(speed, maxSpeed));
     if (simple) {
@@ -494,6 +535,7 @@ class FillObj extends DrawingObj {
     horizontal = iHor;
     vertical = iVer;
     setSpacing(isp);
+    updatePos();
   }
   
   void setSpeed(float is) {
@@ -529,16 +571,16 @@ class FillObj extends DrawingObj {
     }
   }
   
-  void display(Stage iStage, boolean simple) {
+  void display(DrawingWindow iWindow, boolean simple) {
     update();
     float lx = minX();
     float ly = minY();
     float hx = maxX();
     float hy = maxY();
-    int px1 = iStage.localToGlobalX(lx);
-    int py1 = iStage.localToGlobalY(ly);
-    int px2 = iStage.localToGlobalX(hx);
-    int py2 = iStage.localToGlobalY(hy);
+    int px1 = iWindow.localToGlobalX(lx);
+    int py1 = iWindow.localToGlobalY(ly);
+    int px2 = iWindow.localToGlobalX(hx);
+    int py2 = iWindow.localToGlobalY(hy);
     stroke(redblueColor(speed, maxSpeed));
     if (simple) {
       fill(redblueColor(speed, maxSpeed));
@@ -547,13 +589,13 @@ class FillObj extends DrawingObj {
       noFill();
       if (horizontal) {
         for (float i=ly; i<=hy; i+=spacing) {
-          int py = iStage.localToGlobalY(i);
+          int py = iWindow.localToGlobalY(i);
           line(px1, py, px2, py);
         }
       }
       if (vertical) {
         for (float i=lx; i<=hx; i+=spacing) {
-          int px = iStage.localToGlobalX(i);
+          int px = iWindow.localToGlobalX(i);
           line(px, py1, px, py2);
         }
       }
@@ -591,353 +633,6 @@ class FillObj extends DrawingObj {
   }
 }
 
-class GroupObj extends DrawingObj {
-  float w, h;
-  ArrayList<DrawingObj> objs;
-  ArrayList<float[]> relativeX;
-  ArrayList<float[]> relativeY;
-  
-  GroupObj() {
-    super(new float[]{0, 0}, new float[]{0, 0});
-    objs = new ArrayList<DrawingObj>();
-    init();
-  }
-  
-  GroupObj(ArrayList<DrawingObj> iObjs) {
-    super(new float[]{0, 0}, new float[]{0, 0});
-    objs = iObjs;
-    init();
-  }
-  
-  void init() {
-    relativeX = new ArrayList<float[]>();
-    relativeY = new ArrayList<float[]>();
-    getBounds();
-  }
-  
-  void insert(DrawingObj iObj) {
-    objs.add(iObj);
-    getBounds();
-  }
-  
-  void insert(ArrayList<DrawingObj> iObjs) {
-    objs.addAll(iObjs);
-    getBounds();
-  }
-  
-  void remove(DrawingObj iObj) {
-    objs.remove(iObj);
-    getBounds();
-  }
-  
-  void updatePos() {
-    super.updatePos();
-    w = xCoords[1]-xCoords[0];
-    h = yCoords[1]-yCoords[0];
-    endTransform();
-  }
-  
-  void getBounds() {
-    if (objs.size() > 0) {
-      DrawingObj currObj = objs.get(0);
-      xCoords[0] = xCoords[1] = currObj.minX();
-      yCoords[0] = yCoords[1] = currObj.minY();
-      
-      for (int i=0; i<objs.size(); i++) {
-        currObj = objs.get(i);
-        xCoords[0] = min(xCoords[0], currObj.minX());
-        yCoords[0] = min(yCoords[0], currObj.minY());
-        xCoords[1] = max(xCoords[1], currObj.maxX());
-        yCoords[1] = max(yCoords[1], currObj.maxY());
-      }
-      
-      w = xCoords[1]-xCoords[0];
-      h = yCoords[1]-yCoords[0];
-      
-      setRelativePos();
-    }
-    updatePos();
-  }
-  
-  void setRelativePos() {
-    relativeX.clear();
-    relativeY.clear();
-        
-    for (int i=0; i<objs.size(); i++) {
-      DrawingObj currObj = objs.get(i);
-      float[] tempRelX = new float[currObj.numCoords];
-      float[] tempRelY = new float[currObj.numCoords];
-      for (int j=0; j<currObj.numCoords; j++) {
-        if (w > 0) {
-          tempRelX[j] = (currObj.xCoords[j]-xCoords[0])/w;
-        } else {
-          tempRelX[j] = 0;
-        }
-        if (h > 0) {
-          tempRelY[j] = (currObj.yCoords[j]-yCoords[0])/h;
-        } else {
-          tempRelY[j] = 0;
-        }
-      }
-      relativeX.add(tempRelX);
-      relativeY.add(tempRelY);
-    }
-  }
-  
-  void endTransform() {
-    if (objs != null) {
-      for (int i=0; i<objs.size(); i++) {
-        DrawingObj currObj = objs.get(i);
-        float[] tempRelX = relativeX.get(i);
-        float[] tempRelY = relativeY.get(i);
-        for (int j=0; j<currObj.numCoords; j++) {
-          currObj.xCoords[j] = xCoords[0] + tempRelX[j]*w;
-          currObj.yCoords[j] = yCoords[0] + tempRelY[j]*h;
-        }
-        currObj.updatePos();
-      }
-    }
-  }
-  
-  void display(Stage iStage, boolean simple) {
-    update();
-    if (simple) {
-      for (int i=0; i<objs.size(); i++) {
-        objs.get(i).display(iStage, true);
-      }
-    } else {
-      for (int i=0; i<objs.size(); i++) {
-        objs.get(i).display(iStage, false);
-      }
-      int px1 = iStage.localToGlobalX(xCoords[0]);
-      int py1 = iStage.localToGlobalY(yCoords[0]);
-      int px2 = iStage.localToGlobalX(xCoords[1]);
-      int py2 = iStage.localToGlobalY(yCoords[1]);
-      noFill();
-      stroke(220);
-      rect(px1-1, py1-1, px2-px1+2, py2-py1+2);
-      displayButtons();
-    }
-  }
-  
-  void makeCommands() {
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).makeCommands();
-    }
-  }
-  
-  void ungroup() {
-    drawingList.addAll(this.objs);
-    objSelection.insert(this.objs);
-    delete();
-  }
-  
-  void setTime(float it) {
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).setTime(it);
-    }
-  }
-  
-  void setSpeed(float is) {
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).setSpeed(is);
-    }
-  }
-  
-  void setDetail(int iDet) {
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).setDetail(iDet);
-    }
-  }
-  
-  void setSpacing(float isp) {
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).setSpacing(isp);
-    }
-  }
-  
-  String toString() {
-    String toPrint = "GROUP\n";
-    for (int i=0; i<objs.size(); i++) {
-      toPrint += objs.get(i).toString()+"\n";
-    }
-    toPrint += "ENDGROUP";
-    return toPrint;
-  }
-}
-
-class Selection extends GroupObj {
-  String clipboard = "";
-  
-  Selection() {
-    super();
-    buttonSize = 8;
-    dragButton.basecolor = color(0, 255, 0);
-    dragButton.pressedcolor = dragButton.highlightcolor = color(0, 200, 0);
-    dragButton.w = dragButton.h = buttonSize;
-    for (int i=0; i<2; i++) {
-      vertexButtons[i].basecolor = color(0, 255, 0);
-      vertexButtons[i].pressedcolor = vertexButtons[i].highlightcolor = color(0, 200, 0);
-      vertexButtons[i].w = vertexButtons[i].h = buttonSize;
-    }
-  }
-  
-  void updatePos() {
-    super.updatePos();
-    editTool.setVals(xCoords[0], yCoords[0], xCoords[1]-xCoords[0], yCoords[1]-yCoords[0]);
-  }
-  
-  void press() {
-    super.press();
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).press();
-    }
-  }
-  
-  void release() {
-    super.release();
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).release();
-    }
-    getBounds();
-  }
-  
-  void select() {
-    super.select();
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).select();
-    }
-  }
-  
-  void deselect() {
-    super.deselect();
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).deselect();
-    }
-    objs.clear();
-  }
-  
-  void insert(DrawingObj iObj) {
-    super.insert(iObj);
-    select();
-  }
-  
-  void insert(ArrayList<DrawingObj>  iObjs) {
-    super.insert(iObjs);
-    select();
-  }
-  
-  void remove(DrawingObj iObj) {
-    iObj.deselect();
-    super.remove(iObj);
-    if (objs.size() == 0) {
-      deselect();
-    }
-  }
-  
-  void delete() {
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).delete();
-    }
-    deselect();
-  }
-  
-  void group() {
-    if (selected) {
-      GroupObj newGroup = new GroupObj((ArrayList<DrawingObj>)objs.clone());
-      drawingList.add(newGroup);
-      delete();
-      insert(newGroup);
-    }
-  }
-  
-  void ungroup() {
-    if (selected) {
-      int objsSize = objs.size();
-      for (int i=0; i<objsSize; i++) {
-        if (objs.get(i) instanceof GroupObj) {
-          GroupObj currObj = (GroupObj)objs.get(i);
-          currObj.ungroup();
-        }
-      }
-    }
-  }
-  
-  void copy() {
-    clipboard = toString();
-  }
-  
-  void paste() {
-    if (clipboard.length() > 0) {
-      String[] strings = clipboard.split("\n");
-      ArrayList<DrawingObj> pasted = parseStrings(strings);
-      deselect();
-      insert(pasted);
-      drawingList.addAll(pasted);
-    }
-  }
-  
-  void display(Stage iStage, boolean simple) {
-    update();
-    if (selected) {
-      int px1 = iStage.localToGlobalX(xCoords[0]);
-      int py1 = iStage.localToGlobalY(yCoords[0]);
-      int px2 = iStage.localToGlobalX(xCoords[1]);
-      int py2 = iStage.localToGlobalY(yCoords[1]);
-      noFill();
-      stroke(0, 255, 0);
-      rect(px1-1, py1-1, px2-px1+2, py2-py1+2);
-      if (!simple) {
-        displayButtons();
-      }
-    }
-  }
-  
-  String toString() {
-    String toPrint = "";
-    for (int i=0; i<objs.size(); i++) {
-      toPrint += objs.get(i).toString()+"\n";
-    }
-    return toPrint;
-  }
-}
-
-class BackgroundImage {
-  float x1;
-  float y1;
-  float x2;
-  float y2;
-  String path;
-  PImage img;
-  
-  BackgroundImage(String iPath, float ix1, float iy1, float ix2, float iy2) {
-    x1 = ix1;
-    y1 = iy1;
-    x2 = ix2;
-    y2 = iy2;
-    path = iPath;
-    img = loadImage(path);
-  }
-  
-  void display(Stage iStage, boolean simple) {
-    int px1 = iStage.localToGlobalX(x1);
-    int py1 = iStage.localToGlobalY(y1);
-    int px2 = iStage.localToGlobalX(x2);
-    int py2 = iStage.localToGlobalY(y2);
-    noFill();
-    noStroke();
-    if (simple) {
-    } else {
-      tint(255, 126);
-      image(img, px1, py1, px2-px1, py2-py1);
-    }
-  }
-  
-  String toString() {
-    return "BGIMAGE "+path+" "+x1+" "+y1+" "+x2+" "+y2;
-  }
-}
-
 class ScanImage extends GroupObj {
   float x1, y1;
   float x2, y2;
@@ -959,6 +654,7 @@ class ScanImage extends GroupObj {
     x2 = ix2;
     y2 = iy2;
     makeLines();
+    updatePos();
   }
   
   void setSpeed(float is) {
@@ -1045,12 +741,12 @@ class ScanImage extends GroupObj {
     insert(tempLines);
   }
   
-  void display(Stage iStage, boolean simple) {
+  void display(DrawingWindow iWindow, boolean simple) {
     update();
-    int px1 = iStage.localToGlobalX(xCoords[0]);
-    int py1 = iStage.localToGlobalY(yCoords[0]);
-    int px2 = iStage.localToGlobalX(xCoords[1]);
-    int py2 = iStage.localToGlobalY(yCoords[1]);
+    int px1 = iWindow.localToGlobalX(xCoords[0]);
+    int py1 = iWindow.localToGlobalY(yCoords[0]);
+    int px2 = iWindow.localToGlobalX(xCoords[1]);
+    int py2 = iWindow.localToGlobalY(yCoords[1]);
     if (simple) {
       tint(255, 126);
       image(img, px1, py1, px2-px1, py2-py1);
@@ -1058,7 +754,7 @@ class ScanImage extends GroupObj {
       tint(255, 126);
       image(img, px1, py1, px2-px1, py2-py1);
       for (int i=0; i<objs.size(); i++) {
-        objs.get(i).display(iStage, false);
+        objs.get(i).display(iWindow, false);
       }
       noFill();
       stroke(220);
@@ -1068,7 +764,358 @@ class ScanImage extends GroupObj {
   }
   
   String toString() {
-    return "IMAGE "+speed+" "+path+" "+horizontal+" "+vertical+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
+    return "SCANIMAGE "+speed+" "+path+" "+horizontal+" "+vertical+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
+  }
+}
+
+class BackgroundImage extends DrawingObj{
+  String path;
+  PImage img;
+  
+  BackgroundImage(String iPath, float ix1, float iy1, float ix2, float iy2) {
+    super(new float[]{ix1, ix2}, new float[]{iy1, iy2});
+    path = iPath;
+    img = loadImage(path);
+    updatePos();
+  }
+  
+  void updatePos() {
+    super.updatePos();
+    bgImageTool.setVals(xCoords[0], yCoords[0], xCoords[1]-xCoords[0], yCoords[1]-yCoords[0]);
+  }
+  
+  void display(DrawingWindow iWindow, boolean simple) {
+    update();
+    int px1 = iWindow.localToGlobalX(xCoords[0]);
+    int py1 = iWindow.localToGlobalY(yCoords[0]);
+    int px2 = iWindow.localToGlobalX(xCoords[1]);
+    int py2 = iWindow.localToGlobalY(yCoords[1]);
+    noFill();
+    noStroke();
+    tint(255, 126);
+    image(img, px1, py1, px2-px1, py2-py1);
+    if (!simple) {
+      displayButtons();
+    }
+  }
+  
+  String toString() {
+    return "BGIMAGE "+path+" "+xCoords[0]+" "+yCoords[0]+" "+xCoords[1]+" "+yCoords[1];
+  }
+}
+
+class GroupObj extends DrawingObj {
+  float w, h;
+  ArrayList<DrawingObj> objs;
+  ArrayList<float[]> relativeX;
+  ArrayList<float[]> relativeY;
+  
+  GroupObj() {
+    super(new float[]{0, 0}, new float[]{0, 0});
+    objs = new ArrayList<DrawingObj>();
+    relativeX = new ArrayList<float[]>();
+    relativeY = new ArrayList<float[]>();
+    getBounds();
+    updatePos();
+  }
+  
+  GroupObj(ArrayList<DrawingObj> iObjs) {
+    super(new float[]{0, 0}, new float[]{0, 0});
+    objs = iObjs;
+    relativeX = new ArrayList<float[]>();
+    relativeY = new ArrayList<float[]>();
+    getBounds();
+    updatePos();
+  }
+  
+  void insert(DrawingObj iObj) {
+    objs.add(iObj);
+    getBounds();
+  }
+  
+  void insert(ArrayList<DrawingObj> iObjs) {
+    objs.addAll(iObjs);
+    getBounds();
+  }
+  
+  void remove(DrawingObj iObj) {
+    objs.remove(iObj);
+    getBounds();
+  }
+  
+  void updatePos() {
+    super.updatePos();
+    w = xCoords[1]-xCoords[0];
+    h = yCoords[1]-yCoords[0];
+    endTransform();
+  }
+  
+  void getBounds() {
+    if (objs.size() > 0) {
+      DrawingObj currObj = objs.get(0);
+      xCoords[0] = xCoords[1] = currObj.minX();
+      yCoords[0] = yCoords[1] = currObj.minY();
+      
+      for (int i=0; i<objs.size(); i++) {
+        currObj = objs.get(i);
+        xCoords[0] = min(xCoords[0], currObj.minX());
+        yCoords[0] = min(yCoords[0], currObj.minY());
+        xCoords[1] = max(xCoords[1], currObj.maxX());
+        yCoords[1] = max(yCoords[1], currObj.maxY());
+      }
+      
+      w = xCoords[1]-xCoords[0];
+      h = yCoords[1]-yCoords[0];
+      
+      setRelativePos();
+    }
+    updatePos();
+  }
+  
+  void setRelativePos() {
+    relativeX.clear();
+    relativeY.clear();
+        
+    for (int i=0; i<objs.size(); i++) {
+      DrawingObj currObj = objs.get(i);
+      float[] tempRelX = new float[currObj.numCoords];
+      float[] tempRelY = new float[currObj.numCoords];
+      for (int j=0; j<currObj.numCoords; j++) {
+        if (w > 0) {
+          tempRelX[j] = (currObj.xCoords[j]-xCoords[0])/w;
+        } else {
+          tempRelX[j] = 0;
+        }
+        if (h > 0) {
+          tempRelY[j] = (currObj.yCoords[j]-yCoords[0])/h;
+        } else {
+          tempRelY[j] = 0;
+        }
+      }
+      relativeX.add(tempRelX);
+      relativeY.add(tempRelY);
+    }
+  }
+  
+  void endTransform() {
+    if (objs != null) {
+      for (int i=0; i<objs.size(); i++) {
+        DrawingObj currObj = objs.get(i);
+        float[] tempRelX = relativeX.get(i);
+        float[] tempRelY = relativeY.get(i);
+        for (int j=0; j<currObj.numCoords; j++) {
+          currObj.xCoords[j] = xCoords[0] + tempRelX[j]*w;
+          currObj.yCoords[j] = yCoords[0] + tempRelY[j]*h;
+        }
+        currObj.updatePos();
+      }
+    }
+  }
+  
+  void display(DrawingWindow iWindow, boolean simple) {
+    update();
+    if (simple) {
+      for (int i=0; i<objs.size(); i++) {
+        objs.get(i).display(iWindow, true);
+      }
+    } else {
+      for (int i=0; i<objs.size(); i++) {
+        objs.get(i).display(iWindow, false);
+      }
+      int px1 = iWindow.localToGlobalX(xCoords[0]);
+      int py1 = iWindow.localToGlobalY(yCoords[0]);
+      int px2 = iWindow.localToGlobalX(xCoords[1]);
+      int py2 = iWindow.localToGlobalY(yCoords[1]);
+      noFill();
+      stroke(220);
+      rect(px1-1, py1-1, px2-px1+2, py2-py1+2);
+      displayButtons();
+    }
+  }
+  
+  void makeCommands() {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).makeCommands();
+    }
+  }
+  
+  void ungroup() {
+    setLastState();
+    drawingList.addAll(this.objs);
+    objSelection.insert(this.objs);
+    delete();
+  }
+  
+  void setTime(float it) {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).setTime(it);
+    }
+  }
+  
+  void setSpeed(float is) {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).setSpeed(is);
+    }
+  }
+  
+  void setDetail(int iDet) {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).setDetail(iDet);
+    }
+  }
+  
+  void setSpacing(float isp) {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).setSpacing(isp);
+    }
+  }
+  
+  String toString() {
+    String toPrint = "GROUP\n";
+    for (int i=0; i<objs.size(); i++) {
+      toPrint += objs.get(i).toString()+"\n";
+    }
+    toPrint += "ENDGROUP";
+    return toPrint;
+  }
+}
+
+class Selection extends GroupObj {
+  String clipboard = "";
+  
+  Selection() {
+    super();
+    buttonSize = 8;
+    dragButton.basecolor = color(0, 255, 0);
+    dragButton.pressedcolor = dragButton.highlightcolor = color(0, 200, 0);
+    dragButton.w = dragButton.h = buttonSize;
+    for (int i=0; i<2; i++) {
+      vertexButtons[i].basecolor = color(0, 255, 0);
+      vertexButtons[i].pressedcolor = vertexButtons[i].highlightcolor = color(0, 200, 0);
+      vertexButtons[i].w = vertexButtons[i].h = buttonSize;
+    }
+    updatePos();
+  }
+  
+  void updatePos() {
+    super.updatePos();
+    editTool.setVals(xCoords[0], yCoords[0], xCoords[1]-xCoords[0], yCoords[1]-yCoords[0]);
+  }
+  
+  void press() {
+    super.press();
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).press();
+    }
+  }
+  
+  void release() {
+    super.release();
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).release();
+    }
+    getBounds();
+  }
+  
+  void select() {
+    super.select();
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).select();
+    }
+  }
+  
+  void deselect() {
+    super.deselect();
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).deselect();
+    }
+    objs.clear();
+  }
+  
+  void insert(DrawingObj iObj) {
+    super.insert(iObj);
+    select();
+  }
+  
+  void insert(ArrayList<DrawingObj>  iObjs) {
+    super.insert(iObjs);
+    select();
+  }
+  
+  void remove(DrawingObj iObj) {
+    iObj.deselect();
+    super.remove(iObj);
+    if (objs.size() == 0) {
+      deselect();
+    }
+  }
+  
+  void delete() {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).delete();
+    }
+    deselect();
+  }
+  
+  void group() {
+    if (selected) {
+      setLastState();
+      GroupObj newGroup = new GroupObj((ArrayList<DrawingObj>)objs.clone());
+      drawingList.add(newGroup);
+      delete();
+      insert(newGroup);
+    }
+  }
+  
+  void ungroup() {
+    if (selected) {
+      int objsSize = objs.size();
+      for (int i=0; i<objsSize; i++) {
+        if (objs.get(i) instanceof GroupObj) {
+          GroupObj currObj = (GroupObj)objs.get(i);
+          currObj.ungroup();
+        }
+      }
+    }
+  }
+  
+  void copy() {
+    clipboard = toString();
+  }
+  
+  void paste() {
+    if (clipboard.length() > 0) {
+      setLastState();
+      String[] strings = clipboard.split("\n");
+      ArrayList<DrawingObj> pasted = parseStrings(strings);
+      deselect();
+      insert(pasted);
+      drawingList.addAll(pasted);
+    }
+  }
+  
+  void display(DrawingWindow iWindow, boolean simple) {
+    update();
+    if (selected) {
+      int px1 = iWindow.localToGlobalX(xCoords[0]);
+      int py1 = iWindow.localToGlobalY(yCoords[0]);
+      int px2 = iWindow.localToGlobalX(xCoords[1]);
+      int py2 = iWindow.localToGlobalY(yCoords[1]);
+      noFill();
+      stroke(0, 255, 0);
+      rect(px1-1, py1-1, px2-px1+2, py2-py1+2);
+      if (!simple) {
+        displayButtons();
+      }
+    }
+  }
+  
+  String toString() {
+    String toPrint = "";
+    for (int i=0; i<objs.size(); i++) {
+      toPrint += objs.get(i).toString()+"\n";
+    }
+    return toPrint;
   }
 }
 

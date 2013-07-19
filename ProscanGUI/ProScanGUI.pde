@@ -1,6 +1,7 @@
+import java.util.*;
 import processing.serial.*;
 import processing.net.*;
-import java.util.*;
+import java.text.SimpleDateFormat;
 
 // Thorlabs shutter
 final int tcpPort = 5020;       
@@ -8,18 +9,22 @@ Server tcpServer;
 boolean shutter;
 
 // Proscan stage
-Serial serialConn;  // The serial serialConn object
-boolean firstContact = false;
-float precision = 0.5;
+ProscanIII stage;
+Serial stageSerial;
 float baseMoveSpeed = 5000;
 float scopeX = 0;
 float scopeY = 0;
 ArrayList<Command> commandList;
 
 // Window info
-Stage mainStage;
-Stage miniStage;
-float miniStageRangeX = 25400;
+DrawingWindow mainWindow;
+DrawingWindow miniWindow;
+Selection objSelection;
+ProgressBox progressBox;
+DrawingObj currentDraw = null;
+BackgroundImage backgroundImage = null;
+String lastState = "";
+ArrayList<DrawingObj> drawingList;
 final int width = 1280;
 final int height = 960;
 final int leftMargin = 20;
@@ -27,22 +32,23 @@ final int rightMargin = 20;
 final int topMargin = 77;
 final int bottomMargin = 50;
 int backGroundColor = #66a3d2;
-float gridSize = 1;
-Selection objSelection;
-DrawingObj currentDraw = null;
-BackgroundImage backgroundImage = null;
-ArrayList<DrawingObj> drawingList;
-
-// Interface
-final float maxSpeed = 10000;
-final float maxTime = 100;
 int fontSize = 12;
 PFont font = createFont("Ariel", 12);
+float gridSize = 10.0;
+
+// Interface
+String logPath;
+PrintWriter logFile;
+int sequenceNum = 0;
+final float maxSpeed = 10000;
+final float maxTime = 100;
 Tool currentTool;
 TextBox selectedText = null;
 boolean dragging = false;
 boolean paused = false;
 boolean beginPress = false;
+boolean[] keys = new boolean[526];
+File saveFile = null;
 
 // Toolbars
 ArrayList<Tool> drawingTools;
@@ -52,7 +58,6 @@ Toolbar fileToolbar;
 Toolbar controlToolbar;
 
 // Tool Buttons
-
 MoveTool moveTool;
 PointTool pointTool;
 LineTool lineTool;
@@ -60,6 +65,7 @@ CurveTool curveTool;
 RectTool rectTool;
 EllipseTool ellipseTool;
 FillTool fillTool;
+LetterTool letterTool;
 ScanImageTool scanImageTool;
 BGImageTool bgImageTool;
 ZoomInTool zoomInTool;
@@ -68,23 +74,24 @@ EditTool editTool;
 SettingsTool settingsTool;
 
 // Other Buttons
-TextButton saveButton;
+TextButton newButton;
 TextButton loadButton;
+TextButton saveButton;
 TextButton posButton;
+TextButton absZeroButton;
 TextButton zeroButton;
 TextButton stopButton;
 TextButton pauseButton;
 TextButton runButton;
 
-// initialization
+// Initialization
 void setup() {
-  // Stage init;
+  // Window Init;
   size(width, height);
-  mainStage = new Stage(leftMargin, topMargin, width-leftMargin-rightMargin, height-topMargin-bottomMargin, 1000);
-  miniStage = new Stage(mainStage.x+mainStage.w-200, mainStage.y+mainStage.h-200, 200, 200, miniStageRangeX);
-  miniStage.lowX = 0;
-  miniStage.lowY = 0;
-  size(leftMargin+mainStage.w+rightMargin, topMargin+mainStage.h+bottomMargin);
+  mainWindow = new DrawingWindow(leftMargin, topMargin, width-leftMargin-rightMargin, height-topMargin-bottomMargin, 1000);
+  miniWindow = new DrawingWindow(mainWindow.x+mainWindow.w-200, mainWindow.y+mainWindow.h-200, 200, 200, 25400);
+  miniWindow.lowX = 0;
+  miniWindow.lowY = 0;
   textFont(font);
   
   // Initialize drawing and command lists
@@ -94,12 +101,14 @@ void setup() {
   // Initialize Toolbars
   drawingToolbar = new Toolbar(leftMargin, 12);
   chooserToolbar = new Toolbar(leftMargin, 41);
-  fileToolbar = new Toolbar(leftMargin+mainStage.w-110, 12);
-  controlToolbar = new Toolbar(leftMargin, topMargin+mainStage.h+10);
+  fileToolbar = new Toolbar(leftMargin+mainWindow.w-160, 12);
+  controlToolbar = new Toolbar(leftMargin, topMargin+mainWindow.h+10);
   
-  saveButton = new TextButton(0, 0, 0, 24, "SAVE", new SaveAction());
+  newButton = new TextButton(0, 0, 0, 24, "NEW", new NewAction());
   loadButton = new TextButton(0, 0, 0, 24, "LOAD", new LoadAction());
+  saveButton = new TextButton(0, 0, 0, 24, "SAVE", new SaveAction());
   posButton = new TextButton(0, 0, 0, 24, "POS", new PosAction());
+  absZeroButton = new TextButton(0, 0, 0, 24, "ABS ZERO", new AbsZeroAction());
   zeroButton = new TextButton(0, 0, 0, 24, "ZERO", new ZeroAction());
   stopButton = new TextButton(0, 0, 0, 24, "STOP", new StopAction());
   pauseButton = new TextButton(0, 0, 0, 24, "PAUSE", new PauseAction());
@@ -112,6 +121,7 @@ void setup() {
   rectTool = new RectTool();
   ellipseTool = new EllipseTool();
   fillTool = new FillTool();
+  letterTool = new LetterTool();
   scanImageTool = new ScanImageTool();
   bgImageTool = new BGImageTool();
   zoomInTool = new ZoomInTool();
@@ -127,6 +137,7 @@ void setup() {
   drawingTools.add(rectTool);
   drawingTools.add(ellipseTool);
   drawingTools.add(fillTool);
+  drawingTools.add(letterTool);
   drawingTools.add(scanImageTool);
   drawingTools.add(bgImageTool);
   drawingTools.add(zoomInTool);
@@ -141,81 +152,94 @@ void setup() {
   drawingToolbar.setTools(drawingButtons);
   
   ArrayList<Interface> fileTools = new ArrayList<Interface>();
+  fileTools.add(newButton);
   fileTools.add(loadButton);
   fileTools.add(saveButton);
   fileToolbar.setTools(fileTools);
   
   ArrayList<Interface> controlTools = new ArrayList<Interface>();
   controlTools.add(posButton);
+  controlTools.add(absZeroButton);
   controlTools.add(zeroButton);
   controlTools.add(stopButton);
   controlTools.add(pauseButton);
   controlTools.add(runButton);
   controlToolbar.setTools(controlTools);
   
-  pointTool.activate();
-  
-  // Make Selection
+  // Setup Objects
   objSelection = new Selection();
+  progressBox = new ProgressBox(mainWindow.x+mainWindow.w-200, topMargin+mainWindow.h+10, 200, 24);
+  
+  // Begin Log File
+  Date date = new Date();
+  String dateString = new SimpleDateFormat("MM:dd:yyyy/h.mm.ss a").format(date);
+  logPath = sketchPath("")+"/Logs/"+dateString+"/";
+  logFile = createWriter(logPath+"logfile.txt");
+  
+  // Create Connection
   /*
+  stage = new ProscanIII();
+  for (int i=0; i<Serial.list().length; i++) {
+    if (Serial.list()[i].equals(stage.serialName)) {
+      stageSerial = new Serial(this, Serial.list()[i], 9600);
+    }
+  }
+  stage.connect();
+  */
+  
   // connect to solenoid
   tcpServer = new Server(this, tcpPort);
-  println(Serial.list());
   
-  // Using the first available serialConn (might be different on your computer)
-  serialConn = new Serial(this, Serial.list()[0], 9600);
-  // Request values right off the bat
-  while (firstContact == false) {
-    serialConn.write("PS\r");
-    delay(1000);
-  }
-  
+  moveTool.activate();
   setShutter(false);
-  addCommand(new TextCommand("BLSH", "0"));
-  
-  */
 }
+
+void stop() {
+  logFile.flush();
+  logFile.close();
+} 
 
 // draws screen (is looped automatically)
 void draw() {
   // Set the background
   background(backGroundColor);
   
-  // Draw stage
-  mainStage.display();
+  // Draw Main Window
+  mainWindow.display();
   
   if (backgroundImage != null) {
-    backgroundImage.display(mainStage, false);
+    backgroundImage.display(mainWindow, false);
   }
   
   // Origin Dot
   stroke(0);
   fill(0);
-  ellipse(mainStage.localToGlobalX(0), mainStage.localToGlobalY(0), 3, 3);
+  ellipse(mainWindow.localToGlobalX(0), mainWindow.localToGlobalY(0), 3, 3);
   
   // Range Bar
   stroke(0);
   strokeWeight(2);
   fill(0);
-  line(mainStage.x+30, mainStage.y+mainStage.h-30, mainStage.x+mainStage.w/10, mainStage.y+mainStage.h-30);
-  text(str(mainStage.rangeX/10)+" um", mainStage.x+30, mainStage.y+mainStage.h-28+fontSize);
+  line(mainWindow.x+30, mainWindow.y+mainWindow.h-30, mainWindow.x+mainWindow.w/10, mainWindow.y+mainWindow.h-30);
+  text(str(mainWindow.rangeX/10)+" um", mainWindow.x+30, mainWindow.y+mainWindow.h-28+fontSize);
   strokeWeight(1);
     
   // display drawing objects
   for (int i=0; i<drawingList.size(); i++) {
-    drawingList.get(i).display(mainStage, false);
+    drawingList.get(i).display(mainWindow, false);
   }
-  objSelection.display(mainStage, false);
+  objSelection.display(mainWindow, false);
   
   // show whats currently being drawn
   if (currentDraw != null) {
-    currentDraw.display(mainStage, false);
+    currentDraw.display(mainWindow, false);
   }
   editTool.display();
+  bgImageTool.display();
   
   // Show Scope Position
-  int posX = mainStage.localToGlobalX(scopeX);
-  int posY = mainStage.localToGlobalY(scopeY);
+  int posX = mainWindow.localToGlobalX(scopeX);
+  int posY = mainWindow.localToGlobalY(scopeY);
   stroke(0);
   line(posX-7, posY, posX+7, posY);
   line(posX, posY-7, posX, posY+7);
@@ -226,7 +250,7 @@ void draw() {
   ellipse(posX, posY, 4, 4);
   
   
-  // Draw background to cover drawing objects beyond stage
+  // Draw background to cover drawing objects beyond window
   fill(backGroundColor);
   rect(0, 0, leftMargin-1, height);
   rect(0, 0, width, topMargin-1);
@@ -234,22 +258,26 @@ void draw() {
   rect(width, height, -width, -bottomMargin+1);
   
   
-  // Display ministage
-  miniStage.display();
+  // Display miniWindow
+  
+  miniWindow.display();
+  if (backgroundImage != null) {
+    backgroundImage.display(miniWindow, true);
+  }
   for (int i=0; i<drawingList.size(); i++) {
-    drawingList.get(i).display(miniStage, true);
+    drawingList.get(i).display(miniWindow, true);
   }
   stroke(200);
   noFill();
-  int lx = miniStage.localToGlobalX(mainStage.lowX);
-  int ly = miniStage.localToGlobalY(mainStage.lowY);
-  int hx = miniStage.localToGlobalX(mainStage.lowX+mainStage.rangeX);
-  int hy = miniStage.localToGlobalY(mainStage.lowY+mainStage.rangeY);
+  int lx = miniWindow.localToGlobalX(mainWindow.lowX);
+  int ly = miniWindow.localToGlobalY(mainWindow.lowY);
+  int hx = miniWindow.localToGlobalX(mainWindow.lowX+mainWindow.rangeX);
+  int hy = miniWindow.localToGlobalY(mainWindow.lowY+mainWindow.rangeY);
   rect(lx, ly, hx-lx, hy-ly);
   
-  // Show Ministage Scope Position
-  posX = miniStage.localToGlobalX(scopeX);
-  posY = miniStage.localToGlobalY(scopeY);
+  // Show miniWindow Scope Position
+  posX = miniWindow.localToGlobalX(scopeX);
+  posY = miniWindow.localToGlobalY(scopeY);
   noStroke();
   fill(0, 255, 0);
   ellipse(posX, posY, 2, 2);
@@ -260,33 +288,87 @@ void draw() {
   fileToolbar.display();
   controlToolbar.display();
   
+  // draw timer
+  progressBox.display();
+  
   // set cursor
   fill(0);
-  if (miniStage.mouseOver()) {
+  if (miniWindow.mouseOver()) {
     cursor(CROSS);
-    text("x:"+String.format("%.1f", miniStage.localMouseX()), mouseX + 15, mouseY - 2);
-    text("y:"+String.format("%.1f", miniStage.localMouseY()), mouseX + 15, mouseY + fontSize);
+    text("x:"+String.format("%.1f", miniWindow.localMouseX()), mouseX + 15, mouseY - 2);
+    text("y:"+String.format("%.1f", miniWindow.localMouseY()), mouseX + 15, mouseY + fontSize);
   } else
-  if (mainStage.mouseOver()) {
+  if (mainWindow.mouseOver()) {
     cursor(CROSS);
-    text("x:"+String.format("%.1f", mainStage.localMouseX()), mouseX + 15, mouseY - 2);
-    text("y:"+String.format("%.1f", mainStage.localMouseY()), mouseX + 15, mouseY + fontSize);
+    text("x:"+String.format("%.1f", mainWindow.localMouseX()), mouseX + 15, mouseY - 2);
+    text("y:"+String.format("%.1f", mainWindow.localMouseY()), mouseX + 15, mouseY + fontSize);
   } else {
     cursor(ARROW);
   }
 }
 
 void keyPressed() {
+  keys[keyCode] = true;
   if (selectedText == null) {
     if (keyCode == BACKSPACE) {
       if (objSelection.selected) {
         objSelection.delete();
+      }
+    } else
+    if (keyCode == UP) {
+      if (objSelection.selected) {
+        objSelection.translate(0, -gridSize);
+      }
+    } else
+    if (keyCode == DOWN) {
+      if (objSelection.selected) {
+        objSelection.translate(0, +gridSize);
+      }
+    } else
+    if (keyCode == LEFT) {
+      if (objSelection.selected) {
+        objSelection.translate(-gridSize, 0);
+      }
+    } else
+    if (keyCode == RIGHT) {
+      if (objSelection.selected) {
+        objSelection.translate(gridSize, 0);
       }
     }
   } else {
     selectedText.type();
   }
   currentTool.keyPress();
+
+  // ctrl_S
+  if(checkKey(CONTROL) && keyCode == 83) {
+    if (saveFile == null) {
+      selectOutput("Save File", "saveData");
+    } else {
+      saveData(saveFile);
+    }
+  }
+  // ctrl_Z
+  if(checkKey(CONTROL) && keyCode == 90) {
+    restoreLastState();
+  }
+  // ctrl_C
+  if(checkKey(CONTROL) && keyCode == 67) {
+    
+    if (objSelection.selected) {
+      objSelection.copy();
+    }
+  }
+  // ctrl_V
+  if(checkKey(CONTROL) && keyCode == 86) {
+    if (objSelection.selected) {
+      objSelection.paste();
+    }
+  }
+}
+
+void keyReleased() {
+  keys[keyCode] = false;
 }
 
 void mousePressed() {
@@ -312,20 +394,26 @@ void mousePressed() {
       }
     }
     
-    if (miniStage.mouseOver()) {
-      mainStage.setPos(miniStage.globalToLocalX(mouseX), miniStage.globalToLocalY(mouseY));
-      zoomInTool.setVals(mainStage.lowX+mainStage.rangeX/2, mainStage.lowY+mainStage.rangeY/2, mainStage.rangeX);
-      zoomOutTool.setVals(mainStage.lowX+mainStage.rangeX/2, mainStage.lowY+mainStage.rangeY/2, mainStage.rangeX);
+    if (miniWindow.mouseOver()) {
+      mainWindow.setPos(miniWindow.localMouseX(), miniWindow.localMouseY());
+      zoomInTool.setVals(mainWindow.lowX+mainWindow.rangeX/2, mainWindow.lowY+mainWindow.rangeY/2, mainWindow.rangeX);
+      zoomOutTool.setVals(mainWindow.lowX+mainWindow.rangeX/2, mainWindow.lowY+mainWindow.rangeY/2, mainWindow.rangeX);
+      if (backgroundImage != null) {
+        backgroundImage.updatePos();
+      }
+      if (objSelection.selected) {
+        objSelection.updatePos();
+      }
     } else
-    if (mainStage.mouseOver()) {
+    if (mainWindow.mouseOver()) {
       beginPress = true;
       currentTool.press();
     }
   }
   if (mouseButton == RIGHT) {
-    if (mainStage.mouseOver()) {
-      float dx = mainStage.globalToLocalX(mouseX);
-      float dy = mainStage.globalToLocalY(mouseY);
+    if (mainWindow.mouseOver()) {
+      float dx = mainWindow.localMouseX();
+      float dy = mainWindow.localMouseY();
       addCommand(new SpeedCommand(baseMoveSpeed));
       addCommand(new MoveCommand(dx, dy, false));
     }
@@ -341,7 +429,9 @@ void mouseDragged() {
 
 // performed when mouse is released
 void mouseReleased() {
-  objSelection.release();
+  if (objSelection.selected) {
+    objSelection.release();
+  }
   for (int i=0; i<chooserToolbar.tools.size(); i++) {
     chooserToolbar.tools.get(i).release();
   }
@@ -359,24 +449,31 @@ void mouseReleased() {
   beginPress = false;
 }
 
+//
+void serialEvent(Serial serial) {
+  String input = serial.readStringUntil('\r');
+  if (serial == stageSerial) {
+    stage.parseInput(input);
+  }
+}
 
-// Called whenever there is something available to read
-void serialEvent(Serial srialConn) {
-  // Dathe Serial serialConn isread in serialEvent() using the readStringUntil() function with * as the end character.
-  String input = serialConn.readStringUntil('\r');
-  
-  if (firstContact == false) {
-    if (input != null) {
-      firstContact = true;
-    }
+void mouseWheel(MouseEvent event) {
+  float amount = event.getAmount();
+  float midX = mainWindow.lowX+mainWindow.rangeX/2;
+  float midY = mainWindow.lowY+mainWindow.rangeY/2;
+  if (amount > 0) {
+    mainWindow.setZoom(midX, midY, 2);
   } else {
-    if (input != null) {
-      if (commandList.size() > 0) {
-        Command currCommand = commandList.get(0);
-        currCommand.recieve(input);
-      }
-    }
-  }  
+    mainWindow.setZoom(midX, midY, 0.5);
+  }
+  zoomInTool.setVals(midX, midY, mainWindow.rangeX);
+  zoomOutTool.setVals(midX, midY, mainWindow.rangeX);
+  if (backgroundImage != null) {
+    backgroundImage.updatePos();
+  }
+  if (objSelection.selected) {
+    objSelection.updatePos();
+  }
 }
 
 // adds a serial command
@@ -404,4 +501,16 @@ void runSequence(ArrayList<DrawingObj> sequence) {
   for (int i=0; i<sequence.size(); i++) {
     sequence.get(i).makeCommands();
   }
+  progressBox.init();
+  
+  // autosave
+  String filePath = logPath+"SEQUENCE"+str(sequenceNum);
+  String[] strings = new String[sequence.size()];
+  for (int i=0; i<sequence.size(); i++) {
+    DrawingObj currObj = sequence.get(i);
+    strings[i] = currObj.toString();
+  }
+  saveStrings(filePath, strings);
+  printToLog("Ran SEQUENCE"+sequenceNum);
+  sequenceNum++;
 }

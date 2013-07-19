@@ -89,6 +89,52 @@ class Interface {
   void release(){}
 }
 
+class ProgressBox extends Interface{
+
+  Timer timer;
+  long endSequenceTime;
+  float countdown;
+  int startNumCommands;
+  int period = 5000;
+  
+  ProgressBox(int ix, int iy, int iw, int ih) {
+    super(ix, iy, iw, ih);
+  }
+  
+  class getEndTime extends TimerTask {
+    public void run() {
+      endSequenceTime = System.currentTimeMillis()+int(timeToCompletion()*1000);
+    }
+  }
+  
+  void init() {
+    endSequenceTime = System.currentTimeMillis()+int(timeToCompletion()*1000);
+    timer = new Timer();
+    timer.schedule(new getEndTime(), 0, period);
+    startNumCommands = commandList.size();
+    visible = true;
+  }
+  
+  void update() {
+    countdown = (endSequenceTime - System.currentTimeMillis())/1000.0;
+    if (countdown <= 0) {
+      timer = null;
+      visible = false;
+    }
+  }
+  
+  void display() {
+    if (visible) {
+      update();
+      stroke(0);
+      fill(245);
+      rect(x, y, w, h);
+      fill(0);
+      text(String.format("Time Left: %.1f  #: %d/%d", countdown, commandList.size(), startNumCommands), x+10, y+h/2+fontSize/2);
+    }
+  }
+}
+
 class Clickable extends Interface {
   color basecolor = color(230);
   color highlightcolor = color(190);
@@ -161,10 +207,10 @@ class Slider extends Interface{
   String stringFormat;
   float val, maxVal;
   Clickable box;
-  TextBox textBox;
+  NumberBox textBox;
   int boxSize = 10;
   
-  Slider(int ix, int iy, int iw, int ih, float imv, String itext, String format, TextBox iTextBox) {
+  Slider(int ix, int iy, int iw, int ih, float imv, String itext, String format, NumberBox iTextBox) {
     super(ix, iy, iw, ih);
     text = itext;
     maxVal = imv;
@@ -236,24 +282,27 @@ class Slider extends Interface{
 class TextBox extends Interface {
   String name;
   String text;
-  float val;
   int textY;
   boolean selected;
   Clickable box;
   Action action;
-  char[] numeric = new char[]{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '-'};
+  char[] numbers = new char[]{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '-'};
+  char[] letters = new char[]{'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '};
+  char[] keyLimit;
   
-  TextBox(int ix, int iy, int iw, int ih, String iName, float iVal, Action iAction) {
+  TextBox(int ix, int iy, int iw, int ih, String iName, Action iAction) {
     super(ix, iy, iw, ih);
     name = iName;
     int leftMargin = int(textWidth(name))+10;
     box = new Clickable(0, 0, w-leftMargin-5, h-6, false);
     box.basecolor = color(255);
     box.pressedcolor = box.highlightcolor = color(237, 237, 255);
-    val = iVal;
     action = iAction;
-    text = str(val);
+    text = "";
     updatePos();
+    keyLimit = new char[numbers.length+letters.length];
+    System.arraycopy(numbers, 0, keyLimit, 0, numbers.length);
+    System.arraycopy(letters, 0, keyLimit, numbers.length, letters.length);
   }
   
   void press() {
@@ -265,24 +314,15 @@ class TextBox extends Interface {
         if (mouseEvent.getClickCount() == 2) {
           text = "";
         }
+        onSelect();
       } else {
         if (selected) {
           selected = false;
           selectedText = null;
           box.release();
-          if (text.length() > 0) {
-            val = parseFloat(text);
-          }
-          text = str(val);
+          onDeselect();
         }
       }
-    }
-  }
-  
-  void setVal(float iVal) {
-    if (!selected) {
-      val = iVal;
-      text = str(val);
     }
   }
   
@@ -296,10 +336,10 @@ class TextBox extends Interface {
           action.run();
         }
       } else {
-        for (int i=0; i<numeric.length; i++) {
-          if (key == numeric[i]) {
+        for (int i=0; i<keyLimit.length; i++) {
+          if (key == keyLimit[i]) {
             text += key;
-            val = parseFloat(text);
+            onKeyAdd();
           }
         }
       }
@@ -311,7 +351,7 @@ class TextBox extends Interface {
       if (selected) {
         if (text.length() > 0) {
           text = text.substring(0, text.length()-1);
-          val = parseFloat(text);
+          onKeyDelete();
         }
       }
     }
@@ -344,7 +384,47 @@ class TextBox extends Interface {
       }
     }
   }
+  
+  void onSelect() {}
+  void onDeselect() {}
+  void onKeyAdd() {}
+  void onKeyDelete() {}
 }
+
+class NumberBox extends TextBox {
+  float val;
+  
+  NumberBox(int ix, int iy, int iw, int ih, String iName, Action iAction) {
+    super(ix, iy, iw, ih, iName, iAction);
+    val = 0;
+    text = str(val);
+    keyLimit = numbers;
+    updatePos();
+  }
+  
+  void setVal(float iVal) {
+    if (!selected) {
+      val = iVal;
+      text = str(val);
+    }
+  }
+  
+  void onDeselect() {
+    if (text.length() > 0) {
+      val = parseFloat(text);
+    }
+    text = str(val);
+  }
+  
+  void onKeyAdd() {
+    val = parseFloat(text);
+  }
+  
+  void onKeyDelete() {
+    val = parseFloat(text);
+  }
+}
+
 
 class TextButton extends Clickable {
   String text;

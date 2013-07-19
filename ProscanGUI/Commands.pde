@@ -1,3 +1,41 @@
+interface MicroscopeStage {
+  void connect();
+  void disconnect();
+  void parseInput(String input);
+}
+
+class ProscanIII implements MicroscopeStage {
+  boolean connected = false;
+  String serialName = "COM3";
+  
+  void connect() {
+    while (connected == false) {
+      stageSerial.write("PS\r");
+      delay(1000);
+      connected = true;
+    }
+  }
+  
+  void disconnect() {
+    connected = false;
+  }
+  
+  void parseInput(String input) {
+    if (connected == false) {
+      if (input != null) {
+        connected = true;
+      }
+    } else {
+      if (input != null) {
+        if (commandList.size() > 0) {
+          Command currCommand = commandList.get(0);
+          currCommand.recieve(input);
+        }
+      }
+    }  
+  }
+}
+
 interface Command {
   void send();
   void recieve(String input);
@@ -17,7 +55,7 @@ class TextCommand implements Command {
   }
   
   void send() {
-    serialConn.write(toString()+"\r");
+    stageSerial.write(toString()+"\r");
   }
   
   void recieve(String input) {
@@ -31,7 +69,7 @@ class ShutterCommand implements Command {
   float time;
   Timer timer;
 
-  class nextTask extends TimerTask {
+  class Finish extends TimerTask {
     public void run() {
       setShutter(false);
       commandList.remove(0);
@@ -49,7 +87,7 @@ class ShutterCommand implements Command {
     setShutter(isOpen);
     if (time > 0) {
       timer = new Timer();
-      timer.schedule(new nextTask(), int(time*1000));
+      timer.schedule(new Finish(), int(time*1000));
     } else {
       commandList.remove(0);
       runNext();
@@ -66,7 +104,7 @@ class ShutterCommand implements Command {
 
 class PosCommand implements Command {
   void send() {
-    serialConn.write("PS\r");
+    stageSerial.write("PS\r");
   }
   
   void recieve(String input) {
@@ -90,7 +128,7 @@ class SpeedCommand implements Command {
   }
   
   void send() {
-    serialConn.write("SMS,"+str(int(speed*100))+",i"+"\r");
+    stageSerial.write("SMS,"+str(int(speed*100))+",i"+"\r");
   }
   
   void recieve(String input) {
@@ -109,6 +147,7 @@ class MoveCommand implements Command {
   boolean shut;
   boolean recieved = false;
   float aveDeltaScope = 0;
+  float precision = 0.5;
   float sensitivity = 0.07;
   
   MoveCommand(float ix, float iy, boolean iShut) {
@@ -118,7 +157,7 @@ class MoveCommand implements Command {
   }
   
   void send() {
-    serialConn.write("G,"+str(int(destX*10))+","+str(int(destY*10))+"\r");
+    stageSerial.write("G,"+str(int(destX*10))+","+str(int(destY*10))+"\r");
   }
   
   void recieve(String input) {
@@ -126,7 +165,7 @@ class MoveCommand implements Command {
     
     if (recieved == false) {
       recieved = true;
-      serialConn.write("PS\r");
+      stageSerial.write("PS\r");
     } else {
       
       float newScopeX = float(parseInt(vals[0].trim()))/10;
@@ -152,7 +191,7 @@ class MoveCommand implements Command {
           return;
         }
       }
-      serialConn.write("PS\r");
+      stageSerial.write("PS\r");
     }
   }
   
