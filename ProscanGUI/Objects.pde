@@ -554,23 +554,6 @@ class FillObj extends DrawingObj {
     }
   }
   
-  void makeLines() {
-    float lx = minX();
-    float ly = minY();
-    float hx = maxX();
-    float hy = maxY();
-    if (horizontal) {
-      for (float i=ly; i<=hy; i+=spacing) {
-        line(lx, i, hx, i);
-      }
-    }
-    if (vertical) {
-      for (float i=lx; i<=hx; i+=spacing) {
-        line(i, ly, i, hy);
-      }
-    }
-  }
-  
   void display(DrawingWindow iWindow, boolean simple) {
     update();
     float lx = minX();
@@ -634,8 +617,6 @@ class FillObj extends DrawingObj {
 }
 
 class ScanImage extends GroupObj {
-  float x1, y1;
-  float x2, y2;
   float speed;
   String path;
   PImage img;
@@ -649,11 +630,7 @@ class ScanImage extends GroupObj {
     img = loadImage(path);
     horizontal = iHor;
     vertical = iVer;
-    x1 = ix1;
-    y1 = iy1;
-    x2 = ix2;
-    y2 = iy2;
-    makeLines();
+    makeLines(ix1, iy1, ix2, iy2);
     updatePos();
   }
   
@@ -674,9 +651,9 @@ class ScanImage extends GroupObj {
     }
   }
   
-  void makeLines() {
-    float w = x2-x1;
-    float h = y2-y1;
+  void makeLines(float ix1, float iy1, float ix2, float iy2) {
+    float w = ix2-ix1;
+    float h = iy2-iy1;
     int imgH = img.height;
     int imgW = img.width;
     boolean makingLine = false;
@@ -686,9 +663,9 @@ class ScanImage extends GroupObj {
     
     if (horizontal) {
       for (int i=0; i<imgH; i++) {
-        float y = y1+i*(h/imgH);
+        float y = iy1+i*(h/imgH);
         for (int j=0; j<imgW; j++) {
-          float x = x1+j*(w/imgW);
+          float x = ix1+j*(w/imgW);
           int pixel = img.pixels[i*imgW+j];
           if (currLine != null) {
             if (isBlack(pixel) == false) {
@@ -704,7 +681,7 @@ class ScanImage extends GroupObj {
           }
         }
         if (currLine != null) {
-          currLine.xCoords[1] = w;
+          currLine.xCoords[1] = ix1+w;
           currLine.yCoords[1] = y;
           tempLines.add(currLine);
           currLine = null;
@@ -713,9 +690,9 @@ class ScanImage extends GroupObj {
     }
     if (vertical) {
       for (int i=0; i<imgW; i++) {
-        float x = x1+i*(w/imgW);
+        float x = ix1+i*(w/imgW);
         for (int j=0; j<imgH; j++) {
-          float y = y1+j*(h/imgH);
+          float y = iy1+j*(h/imgH);
           int pixel = img.pixels[j*imgW+i];
           if (currLine != null) {
             if (isBlack(pixel) == false) {
@@ -732,35 +709,13 @@ class ScanImage extends GroupObj {
         }
         if (currLine != null) {
           currLine.xCoords[1] = x;
-          currLine.yCoords[1] = h;
+          currLine.yCoords[1] = iy1+h;
           tempLines.add(currLine);
           currLine = null;
         }
       }
     }
     insert(tempLines);
-  }
-  
-  void display(DrawingWindow iWindow, boolean simple) {
-    update();
-    int px1 = iWindow.localToGlobalX(xCoords[0]);
-    int py1 = iWindow.localToGlobalY(yCoords[0]);
-    int px2 = iWindow.localToGlobalX(xCoords[1]);
-    int py2 = iWindow.localToGlobalY(yCoords[1]);
-    if (simple) {
-      tint(255, 126);
-      image(img, px1, py1, px2-px1, py2-py1);
-    } else {
-      tint(255, 126);
-      image(img, px1, py1, px2-px1, py2-py1);
-      for (int i=0; i<objs.size(); i++) {
-        objs.get(i).display(iWindow, false);
-      }
-      noFill();
-      stroke(220);
-      rect(px1-1, py1-1, px2-px1+2, py2-py1+2);
-      displayButtons();
-    }
   }
   
   String toString() {
@@ -793,7 +748,19 @@ class BackgroundImage extends DrawingObj{
     noFill();
     noStroke();
     tint(255, 126);
+    pushMatrix();
+    if (px2-px1 < 0) {
+      scale(-1, 1);
+      px1 *= -1;
+      px2 *= -1;
+    }
+    if (py2-py1 < 0) {
+      scale(1, -1);
+      py1 *= -1;
+      py2 *= -1;
+    }
     image(img, px1, py1, px2-px1, py2-py1);
+    popMatrix();
     if (!simple) {
       displayButtons();
     }
@@ -826,6 +793,30 @@ class GroupObj extends DrawingObj {
     relativeY = new ArrayList<float[]>();
     getBounds();
     updatePos();
+  }
+  
+  void setTime(float it) {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).setTime(it);
+    }
+  }
+  
+  void setSpeed(float is) {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).setSpeed(is);
+    }
+  }
+  
+  void setDetail(int iDet) {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).setDetail(iDet);
+    }
+  }
+  
+  void setSpacing(float isp) {
+    for (int i=0; i<objs.size(); i++) {
+      objs.get(i).setSpacing(isp);
+    }
   }
   
   void insert(DrawingObj iObj) {
@@ -912,6 +903,32 @@ class GroupObj extends DrawingObj {
     }
   }
   
+  void flipX() {
+    if (objs != null) {
+      for (int i=0; i<objs.size(); i++) {
+        DrawingObj currObj = objs.get(i);
+        float[] tempRelX = relativeX.get(i);
+        for (int j=0; j<currObj.numCoords; j++) {
+          currObj.xCoords[j] = xCoords[1] - tempRelX[j]*w;
+        }
+        currObj.updatePos();
+      }
+    } 
+  }
+  
+  void flipY() {
+    if (objs != null) {
+      for (int i=0; i<objs.size(); i++) {
+        DrawingObj currObj = objs.get(i);
+        float[] tempRelY = relativeY.get(i);
+        for (int j=0; j<currObj.numCoords; j++) {
+          currObj.yCoords[j] = yCoords[1] - tempRelY[j]*h;
+        }
+        currObj.updatePos();
+      }
+    } 
+  }
+  
   void display(DrawingWindow iWindow, boolean simple) {
     update();
     if (simple) {
@@ -944,30 +961,6 @@ class GroupObj extends DrawingObj {
     drawingList.addAll(this.objs);
     objSelection.insert(this.objs);
     delete();
-  }
-  
-  void setTime(float it) {
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).setTime(it);
-    }
-  }
-  
-  void setSpeed(float is) {
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).setSpeed(is);
-    }
-  }
-  
-  void setDetail(int iDet) {
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).setDetail(iDet);
-    }
-  }
-  
-  void setSpacing(float isp) {
-    for (int i=0; i<objs.size(); i++) {
-      objs.get(i).setSpacing(isp);
-    }
   }
   
   String toString() {
@@ -1080,7 +1073,9 @@ class Selection extends GroupObj {
   }
   
   void copy() {
-    clipboard = toString();
+    if (selected) {
+      clipboard = toString();
+    }
   }
   
   void paste() {
@@ -1090,6 +1085,7 @@ class Selection extends GroupObj {
       ArrayList<DrawingObj> pasted = parseStrings(strings);
       deselect();
       insert(pasted);
+      translate(mainWindow.midX()-midX(), mainWindow.midY()-midY());
       drawingList.addAll(pasted);
     }
   }

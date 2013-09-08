@@ -286,9 +286,7 @@ class TextBox extends Interface {
   boolean selected;
   Clickable box;
   Action action;
-  char[] numbers = new char[]{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '-'};
-  char[] letters = new char[]{'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' '};
-  char[] keyLimit;
+  String keyLimit;
   
   TextBox(int ix, int iy, int iw, int ih, String iName, Action iAction) {
     super(ix, iy, iw, ih);
@@ -300,9 +298,7 @@ class TextBox extends Interface {
     action = iAction;
     text = "";
     updatePos();
-    keyLimit = new char[numbers.length+letters.length];
-    System.arraycopy(numbers, 0, keyLimit, 0, numbers.length);
-    System.arraycopy(letters, 0, keyLimit, numbers.length, letters.length);
+    keyLimit = "[\\p{Print}]";
   }
   
   void press() {
@@ -336,11 +332,10 @@ class TextBox extends Interface {
           action.run();
         }
       } else {
-        for (int i=0; i<keyLimit.length; i++) {
-          if (key == keyLimit[i]) {
-            text += key;
-            onKeyAdd();
-          }
+        String[] matches = match(str(key), keyLimit);
+        if (matches != null) {
+          text += matches[0];
+          onKeyAdd();
         }
       }
     }
@@ -398,7 +393,7 @@ class NumberBox extends TextBox {
     super(ix, iy, iw, ih, iName, iAction);
     val = 0;
     text = str(val);
-    keyLimit = numbers;
+    keyLimit = "[\\p{Nd}.-]";
     updatePos();
   }
   
@@ -451,6 +446,46 @@ class TextButton extends Clickable {
     super.display();
     fill(0);
     text(text, x+10, y+h/2+fontSize/2);
+  }
+}
+
+class Toggle extends TextButton {
+  String text1;
+  String text2;
+  boolean mode = false;
+  
+  Toggle (int ix, int iy, int iw, int ih, String iText1, String iText2, Action iAction) {
+    super(ix, iy, iw, ih, iText1, iAction);
+    text1 = iText1;
+    if (iText2 == null) {
+      text2 = text1;
+    } else {
+      text2 = iText2;
+    }
+    if (w == 0) {
+      w = int(max(textWidth(text1), textWidth(text2)))+20;
+    }
+  }
+  
+  void toggle() {
+    if (mode == true) {
+      mode = false;
+      text = text1;
+      highlightcolor = basecolor = color(230);
+    } else {
+      mode = true;
+      text = text2;
+      highlightcolor = basecolor = color(190);
+    }
+    if (action != null) {
+      action.run();
+    }
+  }
+  
+  void press () {
+    if (over()) {
+      toggle();
+    }
   }
 }
 

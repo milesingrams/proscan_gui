@@ -1,12 +1,12 @@
 class NewAction implements Action {
   void run() {
-    selectOutput("Save Before Closing?", "newPage");
+    selectOutput("Save Before Closing?", "newPage", saveFile);
   }
 }
 
 class LoadAction implements Action {
   void run() {
-    selectInput("Load File", "loadData");
+    selectInput("Load File", "loadData", loadFile);
   }
 }
 
@@ -22,17 +22,8 @@ class PosAction implements Action {
   }
 }
 
-class AbsZeroAction implements Action {
-  void run() {
-    miniWindow.lowX = scopeX;
-    miniWindow.lowY = scopeY;
-  }
-}
-
 class ZeroAction implements Action {
   void run() {
-    miniWindow.lowX -= scopeX;
-    miniWindow.lowY -= scopeY;
     addCommand(new TextCommand("Z", ""));
   }
 }
@@ -49,16 +40,8 @@ class StopAction implements Action {
 
 class PauseAction implements Action {
   void run() {
-    if (paused == false) {
-      paused = true;
-      pauseButton.text = "PLAY";
-      pauseButton.basecolor = color(190);
-    } else {
-      paused = false;
-      pauseButton.text = "PAUSE";
-      pauseButton.basecolor = color(230);
-      runNext();
-    }
+    paused = pauseButton.mode;
+    runNext();
   }
 }
 
@@ -86,26 +69,28 @@ void newPage(File file) {
   objSelection.deselect();
   backgroundImage = null;
   drawingList.clear();
+  saveFile = sketchPathFile;
 }
 
 void loadData(File file) {
   if (file != null) {
+    loadFile = file;
     objSelection.deselect();
-    drawingList = parseStrings(loadStrings(file.getPath()));
-    printToLog("Loaded File:\t"+file.getPath());
+    drawingList = parseStrings(loadStrings(loadFile.getPath()));
+    printToLog("Loaded File:\t"+loadFile.getPath());
   }
 }
 
 void saveData(File file) {
   if (file != null) {
+    saveFile = file;
     String[] strings = new String[drawingList.size()];
     for (int i=0; i<drawingList.size(); i++) {
       DrawingObj currObj = drawingList.get(i);
       strings[i] = currObj.toString();
     }
-    saveStrings(file.getPath(), strings);
-    saveFile = file;
-    printToLog("Saved File:\t"+file.getPath());
+    saveStrings(saveFile.getPath(), strings);
+    printToLog("Saved File:\t"+saveFile.getPath());
   }
 }
 

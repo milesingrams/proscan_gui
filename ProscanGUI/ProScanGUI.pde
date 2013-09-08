@@ -37,18 +37,24 @@ PFont font = createFont("Ariel", 12);
 float gridSize = 10.0;
 
 // Interface
-String logPath;
-PrintWriter logFile;
-int sequenceNum = 0;
 final float maxSpeed = 10000;
 final float maxTime = 100;
 Tool currentTool;
 TextBox selectedText = null;
+boolean mapDrag = false;
 boolean dragging = false;
 boolean paused = false;
 boolean beginPress = false;
 boolean[] keys = new boolean[526];
-File saveFile = null;
+
+// File I/O
+String logPath;
+PrintWriter logFile;
+File sketchPathFile;
+File saveFile;
+File loadFile;
+File lettersFile;
+int sequenceNum = 0;
 
 // Toolbars
 ArrayList<Tool> drawingTools;
@@ -71,6 +77,7 @@ BGImageTool bgImageTool;
 ZoomInTool zoomInTool;
 ZoomOutTool zoomOutTool;
 EditTool editTool;
+LogTool logTool;
 SettingsTool settingsTool;
 
 // Other Buttons
@@ -78,10 +85,9 @@ TextButton newButton;
 TextButton loadButton;
 TextButton saveButton;
 TextButton posButton;
-TextButton absZeroButton;
 TextButton zeroButton;
 TextButton stopButton;
-TextButton pauseButton;
+Toggle pauseButton;
 TextButton runButton;
 
 // Initialization
@@ -89,7 +95,7 @@ void setup() {
   // Window Init;
   size(width, height);
   mainWindow = new DrawingWindow(leftMargin, topMargin, width-leftMargin-rightMargin, height-topMargin-bottomMargin, 1000);
-  miniWindow = new DrawingWindow(mainWindow.x+mainWindow.w-200, mainWindow.y+mainWindow.h-200, 200, 200, 25400);
+  miniWindow = new DrawingWindow(mainWindow.x+mainWindow.w-200, mainWindow.y+mainWindow.h-200, 200, 200, 25000);
   miniWindow.lowX = 0;
   miniWindow.lowY = 0;
   textFont(font);
@@ -108,10 +114,9 @@ void setup() {
   loadButton = new TextButton(0, 0, 0, 24, "LOAD", new LoadAction());
   saveButton = new TextButton(0, 0, 0, 24, "SAVE", new SaveAction());
   posButton = new TextButton(0, 0, 0, 24, "POS", new PosAction());
-  absZeroButton = new TextButton(0, 0, 0, 24, "ABS ZERO", new AbsZeroAction());
   zeroButton = new TextButton(0, 0, 0, 24, "ZERO", new ZeroAction());
   stopButton = new TextButton(0, 0, 0, 24, "STOP", new StopAction());
-  pauseButton = new TextButton(0, 0, 0, 24, "PAUSE", new PauseAction());
+  pauseButton = new Toggle(0, 0, 0, 24, "PAUSE", "PLAY", new PauseAction());
   runButton = new TextButton(0, 0, 0, 24, "RUN", new RunAction());
   
   moveTool = new MoveTool();
@@ -127,6 +132,7 @@ void setup() {
   zoomInTool = new ZoomInTool();
   zoomOutTool = new ZoomOutTool();
   editTool = new EditTool();
+  logTool = new LogTool();
   settingsTool = new SettingsTool();
   
   drawingTools = new ArrayList<Tool>();
@@ -143,6 +149,7 @@ void setup() {
   drawingTools.add(zoomInTool);
   drawingTools.add(zoomOutTool);
   drawingTools.add(editTool);
+  drawingTools.add(logTool);
   drawingTools.add(settingsTool);
   
   ArrayList<Interface> drawingButtons = new ArrayList<Interface>();
@@ -159,7 +166,6 @@ void setup() {
   
   ArrayList<Interface> controlTools = new ArrayList<Interface>();
   controlTools.add(posButton);
-  controlTools.add(absZeroButton);
   controlTools.add(zeroButton);
   controlTools.add(stopButton);
   controlTools.add(pauseButton);
@@ -170,12 +176,16 @@ void setup() {
   objSelection = new Selection();
   progressBox = new ProgressBox(mainWindow.x+mainWindow.w-200, topMargin+mainWindow.h+10, 200, 24);
   
-  // Begin Log File
+  // Setup Files
   Date date = new Date();
   String dateString = new SimpleDateFormat("MM:dd:yyyy/h.mm.ss a").format(date);
   logPath = sketchPath("")+"/Logs/"+dateString+"/";
   logFile = createWriter(logPath+"logfile.txt");
   
+  sketchPathFile = new File(sketchPath(""));
+  loadFile = sketchPathFile;
+  saveFile = sketchPathFile;
+  lettersFile = new File(sketchPath("")+"/Macros/Typography/");
   // Create Connection
   /*
   stage = new ProscanIII();
@@ -201,6 +211,7 @@ void stop() {
 
 // draws screen (is looped automatically)
 void draw() {
+
   // Set the background
   background(backGroundColor);
   
@@ -236,6 +247,7 @@ void draw() {
   }
   editTool.display();
   bgImageTool.display();
+  scanImageTool.display();
   
   // Show Scope Position
   int posX = mainWindow.localToGlobalX(scopeX);
@@ -339,31 +351,36 @@ void keyPressed() {
     selectedText.type();
   }
   currentTool.keyPress();
-
-  // ctrl_S
-  if(checkKey(CONTROL) && keyCode == 83) {
-    if (saveFile == null) {
-      selectOutput("Save File", "saveData");
-    } else {
-      saveData(saveFile);
-    }
-  }
-  // ctrl_Z
-  if(checkKey(CONTROL) && keyCode == 90) {
-    restoreLastState();
-  }
-  // ctrl_C
-  if(checkKey(CONTROL) && keyCode == 67) {
-    
-    if (objSelection.selected) {
+  
+  if (checkKey(CONTROL)) {
+    if (keyCode == int('S')) {
+      if (saveFile == sketchPathFile) {
+        selectOutput("Save File", "saveData", sketchPathFile);
+      } else {
+        saveData(saveFile);
+      }
+    } else
+    if (keyCode == int('Z')) {
+      restoreLastState();
+    } else
+    if (keyCode == int('C')) {
       objSelection.copy();
+    } else
+    if (keyCode == int('V')) {
+      objSelection.paste();
+    } else
+    if (keyCode == int('A')) {
+      objSelection.deselect();
+      objSelection.insert(drawingList);
+    } else
+    if (keyCode == int('N')) {
+      
     }
   }
-  // ctrl_V
-  if(checkKey(CONTROL) && keyCode == 86) {
-    if (objSelection.selected) {
-      objSelection.paste();
-    }
+  
+  // stop escape behavior
+  if (keyCode == ESC) {
+    key = 0;
   }
 }
 
@@ -372,7 +389,7 @@ void keyReleased() {
 }
 
 void mousePressed() {
-  if (mouseButton == LEFT) {  
+  if (mouseButton == LEFT) {
     // Set Tools/Buttons
     for (int i=0; i<chooserToolbar.tools.size(); i++) {
       chooserToolbar.tools.get(i).press();
@@ -406,8 +423,12 @@ void mousePressed() {
       }
     } else
     if (mainWindow.mouseOver()) {
-      beginPress = true;
-      currentTool.press();
+      if (keyPressed && keyCode == SHIFT) {
+        mapDrag = true;
+      } else {
+        beginPress = true;
+        currentTool.press();
+      }
     }
   }
   if (mouseButton == RIGHT) {
@@ -421,6 +442,18 @@ void mousePressed() {
 }
 
 void mouseDragged() {
+  int mouseDiffX = mouseX-pmouseX;
+  int mouseDiffY = mouseY-pmouseY;
+  if (mapDrag) {
+    mainWindow.lowX -= mainWindow.globalToLocalW(mouseDiffX);
+    mainWindow.lowY -= mainWindow.globalToLocalH(mouseDiffY);
+    if (backgroundImage != null) {
+      backgroundImage.updatePos();
+    }
+    if (objSelection.selected) {
+      objSelection.updatePos();
+    }
+  }
   if (beginPress) {
     currentTool.drag();
   }
@@ -446,6 +479,7 @@ void mouseReleased() {
   if (beginPress) {
     currentTool.release();
   }
+  mapDrag = false;
   beginPress = false;
 }
 

@@ -39,12 +39,28 @@ class DrawingWindow {
     return map(iy, y, y+h, lowY, lowY+rangeY);
   }
   
+  float globalToLocalW(int iw) {
+    return float(iw)/width*rangeX;
+  }
+  
+  float globalToLocalH(int ih) {
+    return float(ih)/height*rangeY;
+  }
+  
   float localMouseX() {
     return globalToLocalX(mouseX);
   }
   
   float localMouseY() {
     return globalToLocalY(mouseY);
+  }
+  
+  float midX() {
+    return lowX+rangeX/2;
+  }
+  
+  float midY() {
+    return lowY+rangeY/2;
   }
   
   boolean mouseOver() {

@@ -33,7 +33,7 @@ class MoveTool extends Tool {
   
   NumberBox speedText;
   Slider speedSlider;
-  TextButton shutButton;
+  Toggle shutButton;
   NumberBox xText;
   NumberBox yText;
   TextButton moveButton;
@@ -44,7 +44,7 @@ class MoveTool extends Tool {
     
     speedText = new NumberBox(0, 0, 160, 24, "Speed (um/s): ", new SetSpeed());
     speedSlider = new Slider(0, 0, 166, 24, maxSpeed, "Speed", "%.0f", speedText);
-    shutButton = new TextButton(0, 0, 0, 24, "SHUTTER XXX", new SetShut());
+    shutButton = new Toggle(0, 0, 0, 24, "SHUTTER OFF", "SHUTTER ON", new SetShut());
     xText = new NumberBox(0, 0, 100, 24, "x: ", new Move());
     yText = new NumberBox(0, 0, 100, 24, "y: ", new Move());
     moveButton = new TextButton(0, 0, 0, 24, "MOVE", new Move());
@@ -55,14 +55,6 @@ class MoveTool extends Tool {
     chooser.add(xText);
     chooser.add(yText);
     chooser.add(moveButton);
-    
-    if (shutter == false) {
-        shutButton.text = "SHUTTER ON";
-        shutButton.basecolor = color(190);
-      } else {
-        shutButton.text = "SHUTTER OFF";
-        shutButton.basecolor = color(230);
-      }
   }
   
   void press() {
@@ -107,15 +99,7 @@ class MoveTool extends Tool {
   
   class SetShut implements Action {
     void run() {
-      if (shutter == false) {
-        setShutter(true);
-        shutButton.text = "SHUTTER ON";
-        shutButton.basecolor = color(190);
-      } else {
-        setShutter(false);
-        shutButton.text = "SHUTTER OFF";
-        shutButton.basecolor = color(230);
-      }
+      setShutter(shutButton.mode);
     }
   }
   
@@ -124,7 +108,7 @@ class MoveTool extends Tool {
       float dx = xText.val;
       float dy = yText.val;
       addCommand(new SpeedCommand(speedText.val));
-      addCommand(new MoveCommand(dx, dy, shutter));
+      addCommand(new MoveCommand(dx, dy, shutButton.mode));
     }
   }
 }
@@ -133,11 +117,10 @@ class PointTool extends Tool {
   
   NumberBox timeText;
   Slider timeSlider;
-  TextButton shutButton;
+  Toggle shutButton;
   NumberBox xText;
   NumberBox yText;
   TextButton createButton;
-  boolean shut = true;
   
   PointTool () {
     super();
@@ -145,7 +128,7 @@ class PointTool extends Tool {
     
     timeText = new NumberBox(0, 0, 120, 24, "Time (s): ", new SetTime());
     timeSlider = new Slider(0, 0, 159, 24, maxTime, "Time", "%.1f", timeText);
-    shutButton = new TextButton(0, 0, 0, 24, "SHUTTER ON", new SetShut());
+    shutButton = new Toggle(0, 0, 0, 24, "SHUTTER OFF", "SHUTTER ON", null);
     xText = new NumberBox(0, 0, 100, 24, "x: ", null);
     yText = new NumberBox(0, 0, 100, 24, "y: ", null);
     createButton = new TextButton(0, 0, 0, 24, "CREATE", new Create());
@@ -153,11 +136,11 @@ class PointTool extends Tool {
     chooser.add(timeSlider);
     chooser.add(timeText);
     chooser.add(shutButton);
-    chooser.add(xText);
+    chooser.add(xText); 
     chooser.add(yText);
     chooser.add(createButton);
     
-    shutButton.basecolor = color(190);
+    shutButton.toggle();
   }
   
   void press() {
@@ -166,7 +149,7 @@ class PointTool extends Tool {
     }
     float localX = toGrid(mainWindow.localMouseX());
     float localY = toGrid(mainWindow.localMouseY());
-    currentDraw = new PointObj(timeText.val, shut, localX, localY);
+    currentDraw = new PointObj(timeText.val, shutButton.mode, localX, localY);
   }
   
   void drag() {
@@ -203,20 +186,6 @@ class PointTool extends Tool {
     }
   }
   
-  class SetShut implements Action {
-    void run() {
-      if (shut == false) {
-        shut = true;
-        shutButton.text = "SHUTTER ON";
-        shutButton.basecolor = color(190);
-      } else {
-        shut = false;
-        shutButton.text = "SHUTTER OFF";
-        shutButton.basecolor = color(230);
-      }
-    }
-  }
-  
   class SetTime implements Action {
     void run() {
       float time = timeText.val;
@@ -227,7 +196,7 @@ class PointTool extends Tool {
   class Create implements Action {
     void run() {
       setLastState();
-      drawingList.add(new PointObj(timeText.val, shut, xText.val, yText.val));
+      drawingList.add(new PointObj(timeText.val, shutButton.mode, xText.val, yText.val));
     }
   }
 }
@@ -637,16 +606,14 @@ class FillTool extends Tool {
   
   NumberBox speedText;
   Slider speedSlider;
-  TextButton hButton;
-  TextButton vButton;
+  Toggle hButton;
+  Toggle vButton;
   NumberBox spacingText;
   NumberBox xText;
   NumberBox yText;
   NumberBox wText;
   NumberBox hText;
   TextButton createButton;
-  boolean horizontal = true;
-  boolean vertical = false;
   
   FillTool () {
     super();
@@ -654,8 +621,8 @@ class FillTool extends Tool {
     
     speedText = new NumberBox(0, 0, 160, 24, "Speed (um/s): ", new SetSpeed());
     speedSlider = new Slider(0, 0, 166, 24, maxSpeed, "Speed", "%.0f", speedText);
-    hButton = new TextButton(0, 0, 0, 24, "H", new SetH());
-    vButton = new TextButton(0, 0, 0, 24, "V", new SetV());
+    hButton = new Toggle(0, 0, 0, 24, "H", null, null);
+    vButton = new Toggle(0, 0, 0, 24, "V", null, null);
     spacingText = new NumberBox(0, 0, 120, 24, "Spacing: ", new SetSpacing());
     xText = new NumberBox(0, 0, 100, 24, "x: ", null);
     yText = new NumberBox(0, 0, 100, 24, "y: ", null);
@@ -674,7 +641,7 @@ class FillTool extends Tool {
     chooser.add(hText);
     chooser.add(createButton);
     
-    hButton.basecolor = color(190);
+    hButton.toggle();
     spacingText.setVal(10);
   }
   
@@ -684,7 +651,7 @@ class FillTool extends Tool {
     }
     float localX = toGrid(mainWindow.localMouseX());
     float localY = toGrid(mainWindow.localMouseY());
-    currentDraw = new FillObj(speedText.val, horizontal, vertical, spacingText.val, localX, localY, localX, localY);
+    currentDraw = new FillObj(speedText.val, hButton.mode, vButton.mode, spacingText.val, localX, localY, localX, localY);
   }
   
   void drag() {
@@ -734,30 +701,6 @@ class FillTool extends Tool {
     }
   }
   
-  class SetH implements Action {
-    void run() {
-      if (horizontal == false) {
-        horizontal = true;
-        hButton.basecolor = color(190);
-      } else {
-        horizontal = false;
-        hButton.basecolor = color(230);
-      }
-    }
-  }
-  
-  class SetV implements Action {
-    void run() {
-      if (vertical == false) {
-        vertical = true;
-        vButton.basecolor = color(190);
-      } else {
-        vertical = false;
-        vButton.basecolor = color(230);
-      }
-    }
-  }
-  
   class SetSpacing implements Action {
     void run() {
       float spacing = spacingText.val;
@@ -770,7 +713,7 @@ class FillTool extends Tool {
       float x2 = xText.val+wText.val;
       float y2 = yText.val+hText.val;
       setLastState();
-      drawingList.add(new FillObj(speedText.val, horizontal, vertical, spacingText.val, xText.val, yText.val, x2, y2));
+      drawingList.add(new FillObj(speedText.val, hButton.mode, vButton.mode, spacingText.val, xText.val, yText.val, x2, y2));
     }
   }
 }
@@ -794,7 +737,7 @@ class LetterTool extends Tool {
     xText = new NumberBox(0, 0, 100, 24, "x: ", null);
     yText = new NumberBox(0, 0, 100, 24, "y: ", null);
     hText = new NumberBox(0, 0, 100, 24, "h: ", null);
-    textText = new TextBox(0, 0, 200, 24, "Text: ", null);
+    textText = new TextBox(0, 0, 200, 24, "Text: ", new Create());
     createButton = new TextButton(0, 0, 0, 24, "CREATE", new Create());
     
     chooser.add(speedSlider);
@@ -805,11 +748,41 @@ class LetterTool extends Tool {
     chooser.add(textText);
     chooser.add(createButton);
     
+    textText.keyLimit = "[\\p{Upper}\\p{Nd} ]";
     hText.setVal(22);
+  }
+  
+  void press() {
+   if (objSelection.selected) {
+      objSelection.deselect();
+    }
+    float localX = toGrid(mainWindow.localMouseX());
+    float localY = toGrid(mainWindow.localMouseY());
+    xText.setVal(localX);
+    yText.setVal(localY);
   }
   
   void keyPress() {
     speedSlider.setVal(speedText.val);
+  }
+  
+  void makeLetter(char character) {
+    float th = hText.val;
+    float tx = xText.val;
+    float ty = yText.val;
+    float spaceW = th/2;
+    if (character == ' ') {
+      xText.setVal(xText.val+spaceW);
+    } else {
+      String[] strings = loadStrings(lettersFile.getPath()+"/"+character+".txt");
+      GroupObj letterObj = (GroupObj)parseStrings(strings).get(0);
+      float scaleRatio = letterObj.w/letterObj.h;
+      float letterW = th*scaleRatio;
+      letterObj.setPos(new float[]{0, letterW}, new float[]{0, th});
+      letterObj.translate(tx, ty);
+      drawingList.add(letterObj);
+      xText.setVal(xText.val+letterObj.w + spaceW/2);
+    }
   }
   
   class LetterButton extends Clickable {
@@ -834,24 +807,9 @@ class LetterTool extends Tool {
   class Create implements Action {
     void run() {
       setLastState();
-      float th = hText.val;
-      float tx = xText.val;
-      float ty = yText.val;
-      float spaceW = th/2;
       for (int i=0; i<textText.text.length(); i++) {
         char character = textText.text.charAt(i);
-        if (character == ' ') {
-          tx += spaceW;
-        } else {
-          String[] strings = loadStrings(sketchPath("")+"/Macros/Typography/"+character+".txt");
-          GroupObj letterObj = (GroupObj)parseStrings(strings).get(0);
-          float scaleRatio = letterObj.w/letterObj.h;
-          float letterW = th*scaleRatio;
-          letterObj.setPos(new float[]{0, letterW}, new float[]{0, th});
-          letterObj.translate(tx, ty);
-          tx += letterObj.w + spaceW/2;
-          drawingList.add(letterObj);
-        }
+        makeLetter(character);
       }
     }
   }
@@ -861,15 +819,14 @@ public class ScanImageTool extends Tool {
   
   NumberBox speedText;
   Slider speedSlider;
-  TextButton hButton;
-  TextButton vButton;
+  Toggle hButton;
+  Toggle vButton;
   NumberBox xText;
   NumberBox yText;
   NumberBox wText;
   NumberBox hText;
   TextButton loadScanButton;
-  boolean horizontal = true;
-  boolean vertical = false;
+  boolean selecting;
   
   ScanImageTool () {
     super();
@@ -877,8 +834,8 @@ public class ScanImageTool extends Tool {
     
     speedText = new NumberBox(0, 0, 160, 24, "Speed (um/s): ", new SetSpeed());
     speedSlider = new Slider(0, 0, 166, 24, maxSpeed, "Speed", "%.0f", speedText);
-    hButton = new TextButton(0, 0, 0, 24, "H", new SetH());
-    vButton = new TextButton(0, 0, 0, 24, "V", new SetV());
+    hButton = new Toggle(0, 0, 0, 24, "H", null, null);
+    vButton = new Toggle(0, 0, 0, 24, "V", null, null);
     xText = new NumberBox(0, 0, 100, 24, "x: ", null);
     yText = new NumberBox(0, 0, 100, 24, "y: ", null);
     wText = new NumberBox(0, 0, 100, 24, "w: ", null);
@@ -895,17 +852,59 @@ public class ScanImageTool extends Tool {
     chooser.add(hText);
     chooser.add(loadScanButton);
     
-    hButton.basecolor = color(190);
+    hButton.toggle();
   }
   
   void press() {
     if (objSelection.selected) {
       objSelection.deselect();
     }
+    selecting = true;
+    float x1 = toGrid(mainWindow.localMouseX());
+    float y1 = toGrid(mainWindow.localMouseY());
+    xText.setVal(x1);
+    yText.setVal(y1);
+  }
+  
+  void drag() {
+    if (selecting) {
+      float x2 = toGrid(mainWindow.localMouseX());
+      float y2 = toGrid(mainWindow.localMouseY());
+      wText.setVal(x2-xText.val);
+      hText.setVal(y2-yText.val);
+    }
+  }
+  
+  void release() {
+    selecting = false;
+    float x2 = toGrid(mainWindow.localMouseX());
+    float y2 = toGrid(mainWindow.localMouseY());
+    wText.setVal(x2-xText.val);
+    hText.setVal(y2-yText.val);
+    selectInput("Load Image", "loadScan", sketchPathFile, ScanImageTool.this);
   }
   
   void keyPress() {
     speedSlider.setVal(speedText.val);
+  }
+  
+  void setVals(float x, float y, float w, float h) {
+    xText.setVal(x);
+    yText.setVal(y);
+    wText.setVal(w);
+    hText.setVal(h);
+  }
+  
+  void display() {
+    if (selecting) {
+      stroke(200);
+      noFill();
+      int px1 = mainWindow.localToGlobalX(xText.val);
+      int py1 = mainWindow.localToGlobalY(yText.val);
+      int px2 = mainWindow.localToGlobalX(xText.val+wText.val);
+      int py2 = mainWindow.localToGlobalY(yText.val+hText.val);
+      rect(px1, py1, px2-px1, py2-py1);
+    }
   }
   
   class ScanImageButton extends Clickable { 
@@ -931,10 +930,10 @@ public class ScanImageTool extends Tool {
   public void loadScan(File file) {
     if (file != null) {
       float speed = speedText.val;
-      float x2 = xText.val+wText.val;
-      float y2 = yText.val+hText.val;
       setLastState();
-      drawingList.add(new ScanImage(speed, file.getPath(), horizontal, vertical, xText.val, yText.val, x2, y2));
+      float x2 = xText.val + wText.val;
+      float y2 = yText.val + hText.val;
+      drawingList.add(new ScanImage(speed, file.getPath(), hButton.mode, vButton.mode, xText.val, yText.val, x2, y2));
     }
   }
   
@@ -945,33 +944,9 @@ public class ScanImageTool extends Tool {
     }
   }
   
-  class SetH implements Action {
-    void run() {
-      if (horizontal == false) {
-        horizontal = true;
-        hButton.basecolor = color(190);
-      } else {
-        horizontal = false;
-        hButton.basecolor = color(230);
-      }
-    }
-  }
-  
-  class SetV implements Action {
-    void run() {
-      if (vertical == false) {
-        vertical = true;
-        vButton.basecolor = color(190);
-      } else {
-        vertical = false;
-        vButton.basecolor = color(230);
-      }
-    }
-  }
-  
   class LoadScan implements Action {
     void run() {
-      selectInput("Load Image", "loadScan", null, ScanImageTool.this);
+      selectInput("Load Image", "loadScan", sketchPathFile, ScanImageTool.this);
     }
   }
 }
@@ -1055,7 +1030,7 @@ public class BGImageTool extends Tool {
       float y2 = toGrid(mainWindow.localMouseY());
       wText.setVal(x2-xText.val);
       hText.setVal(y2-yText.val);
-      selectInput("Load Image", "loadBG", null, BGImageTool.this);
+      selectInput("Load Image", "loadBG", sketchPathFile, BGImageTool.this);
     } else {
       backgroundImage.release();
     }
@@ -1099,8 +1074,8 @@ public class BGImageTool extends Tool {
   
   public void loadBG(File file) {
     if (file != null) {
-      float x2 = xText.val+wText.val;
-      float y2 = yText.val+hText.val;
+      float x2 = xText.val + wText.val;
+      float y2 = yText.val + hText.val;
       backgroundImage = new BackgroundImage(file.getPath(), xText.val, yText.val, x2, y2);
       backgroundImage.select();
     }
@@ -1264,6 +1239,8 @@ class EditTool extends Tool {
   NumberBox wText;
   NumberBox hText;
   TextButton setButton;
+  TextButton flipXButton;
+  TextButton flipYButton;
   TextButton groupButton;
   TextButton ungroupButton;
   TextButton copyButton;
@@ -1282,6 +1259,8 @@ class EditTool extends Tool {
     wText = new NumberBox(0, 0, 100, 24, "w: ", new Set());
     hText = new NumberBox(0, 0, 100, 24, "h: ", new Set());
     setButton = new TextButton(0, 0, 0, 24, "SET", new Set());
+    flipXButton = new TextButton(0, 0, 0, 24, "FLIP X", new FlipX());
+    flipYButton = new TextButton(0, 0, 0, 24, "FLIP Y", new FlipY());
     groupButton = new TextButton(0, 0, 0, 24, "GROUP", new Group());
     ungroupButton = new TextButton(0, 0, 0, 24, "UNGROUP", new Ungroup());
     copyButton = new TextButton(0, 0, 0, 24, "COPY", new Copy());
@@ -1293,6 +1272,8 @@ class EditTool extends Tool {
     chooser.add(wText);
     chooser.add(hText);
     chooser.add(setButton);
+    chooser.add(flipXButton);
+    chooser.add(flipYButton);
     chooser.add(groupButton);
     chooser.add(ungroupButton);
     chooser.add(copyButton);
@@ -1374,6 +1355,18 @@ class EditTool extends Tool {
     }
   }
   
+  class FlipX implements Action {
+    void run() {
+      objSelection.flipX();
+    }
+  }
+  
+  class FlipY implements Action {
+    void run() {
+      objSelection.flipY();
+    }
+  }
+  
   class Group implements Action {
     void run() {
       objSelection.group();
@@ -1443,6 +1436,44 @@ class SettingsTool extends Tool {
       gridSize = gridText.val;
       baseMoveSpeed = baseMSText.val;
       miniWindow.setRangeX(miniRangeXText.val);
+    }
+  }
+}
+
+class LogTool extends Tool {
+  
+  TextBox commentText;
+  TextButton commentButton;
+  TextButton openButton;
+  
+  LogTool () {
+    super();
+    button = new TextButton(0, 0, 0, 24, "LOG", null);
+    
+    commentText = new TextBox(0, 0, 500, 24, "Comment: ", new Comment());
+    commentButton = new TextButton(0, 0, 0, 24, "ADD COMMENT", new Comment());
+    openButton = new TextButton(0, 0, 0, 24, "OPEN", new Open());
+    
+    chooser.add(commentText);
+    chooser.add(commentButton);
+    chooser.add(openButton);
+  }
+  
+  void press() {
+    if (objSelection.selected) {
+      objSelection.deselect();
+    }
+  }
+  
+  class Comment implements Action {
+    void run() {
+      printToLog(commentText.text);
+    }
+  }
+  
+  class Open implements Action {
+    void run() {
+      selectInput("Load File", "loadData", new File(logPath+"logfile.txt"));
     }
   }
 }
